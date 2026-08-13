@@ -1,0 +1,9 @@
+replicaCount: 2
+image:
+  repository: bananaoncall
+  tag: dev
+service:
+  port: 80
+resources:
+  requests: {cpu: 50m, memory: 64Mi}
+  limits: {cpu: 500m, memory: 256Mi}

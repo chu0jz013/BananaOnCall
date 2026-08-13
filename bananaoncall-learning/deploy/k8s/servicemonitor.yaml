@@ -1,0 +1,12 @@
+# Requires Prometheus Operator CRDs.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: bananaoncall
+  namespace: bananaoncall
+spec:
+  selector:
+    matchLabels: {app: bananaoncall}
+  endpoints:
+    - port: http
+      path: /metrics

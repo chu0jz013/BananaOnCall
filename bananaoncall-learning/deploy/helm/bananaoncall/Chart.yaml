@@ -1,0 +1,6 @@
+apiVersion: v2
+name: bananaoncall
+description: Learning chart for bananaoncall
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

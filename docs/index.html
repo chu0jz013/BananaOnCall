@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BananaOnCall — Design Doc v0.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: { ink:'#14161A', paper:'#FAFAF7', banana:'#F2C230', fire:'#D8422E', ok:'#1F7A5C', mute:'#5A6472', rule:'#E3E2DB' },
+    fontFamily: { display:['"Bricolage Grotesque"','sans-serif'], sans:['"IBM Plex Sans"','sans-serif'], mono:['"IBM Plex Mono"','monospace'] }
+  }}
+}
+</script>
+<style>
+  html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+  body { -webkit-font-smoothing: antialiased; }
+  .eyebrow { font-family:'IBM Plex Mono',monospace; font-size:.6875rem; letter-spacing:.14em; text-transform:uppercase; }
+  .rail a.on { color:#14161A; }
+  .rail a.on::before { transform: scaleX(1); }
+  .rail a::before { content:''; position:absolute; left:0; top:50%; width:14px; height:1px; background:#F2C230; transform:scaleX(0); transform-origin:left; transition:transform .2s ease; }
+  table { border-collapse: collapse; width:100%; }
+  th, td { text-align:left; padding:.6rem .8rem; border-bottom:1px solid #E3E2DB; vertical-align:top; font-size:.875rem; }
+  th { font-family:'IBM Plex Mono',monospace; font-size:.6875rem; letter-spacing:.1em; text-transform:uppercase; color:#5A6472; font-weight:500; border-bottom:1px solid #14161A; }
+  tbody tr:last-child td { border-bottom:none; }
+  .tbl-wrap { overflow-x:auto; }
+  details > summary { list-style:none; cursor:pointer; }
+  details > summary::-webkit-details-marker { display:none; }
+  details[open] .chev { transform: rotate(90deg); }
+  @keyframes sweep { from { width:0 } to { width:100% } }
+  @keyframes pop { from { opacity:0; transform:scale(.4) } to { opacity:1; transform:scale(1) } }
+  .sweep { animation: sweep 2.2s cubic-bezier(.22,1,.36,1) forwards; }
+  .beat { opacity:0; animation: pop .35s ease forwards; }
+  a:focus-visible, summary:focus-visible, input:focus-visible { outline:2px solid #F2C230; outline-offset:3px; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior:auto }
+    .sweep, .beat { animation:none !important; opacity:1 !important; width:100% }
+  }
+</style>
+</head>
+<body class="bg-paper text-ink font-sans antialiased">
+
+<!-- masthead -->
+<header class="border-b border-ink">
+  <div class="max-w-[1180px] mx-auto px-6 lg:px-10 pt-10 pb-8">
+    <div class="flex flex-wrap items-baseline gap-x-4 gap-y-2 mb-8">
+      <span class="eyebrow text-mute">Design doc</span>
+      <span class="eyebrow text-mute">v0.1</span>
+      <span class="eyebrow text-mute">2026-08-22</span>
+      <span class="eyebrow px-2 py-[3px] bg-banana text-ink">Chờ duyệt</span>
+    </div>
+
+    <h1 class="font-display font-bold leading-[0.92] tracking-[-0.03em] text-[3.25rem] sm:text-[5rem] lg:text-[6.5rem]">
+      Banana<span class="text-banana">OnCall</span>
+    </h1>
+    <p class="mt-5 max-w-2xl text-[1.0625rem] leading-relaxed text-mute">
+      On-call engine chạy trên AWS Serverless. Nhận alert từ Alertmanager, gom nhóm, tìm đúng người đang trực trên
+      Google Calendar, bắn Telegram kèm nút Ack — và tự escalate nếu không ai trả lời.
+    </p>
+
+    <!-- SIGNATURE: escalation clock -->
+    <section aria-label="Đồng hồ escalation" class="mt-12">
+      <div class="flex items-baseline justify-between mb-5">
+        <span class="eyebrow text-mute">Escalation clock · ep-critical</span>
+        <span class="eyebrow text-mute hidden sm:block">ack bất kỳ lúc nào → dừng</span>
+      </div>
+      <div class="relative h-[3px] bg-rule">
+        <div class="sweep absolute inset-y-0 left-0 bg-ink"></div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-y-8 gap-x-4 mt-5">
+        <div class="beat" style="animation-delay:.05s">
+          <div class="font-mono text-xs text-mute mb-1">T+0s</div>
+          <div class="font-display font-bold text-lg leading-tight">Primary</div>
+          <div class="text-sm text-mute mt-1">Telegram DM tới người đang trực</div>
+        </div>
+        <div class="beat" style="animation-delay:.75s">
+          <div class="font-mono text-xs text-mute mb-1">T+5m</div>
+          <div class="font-display font-bold text-lg leading-tight">Secondary</div>
+          <div class="text-sm text-mute mt-1">Chưa ack → người trực dự phòng</div>
+        </div>
+        <div class="beat" style="animation-delay:1.45s">
+          <div class="font-mono text-xs text-mute mb-1">T+10m</div>
+          <div class="font-display font-bold text-lg leading-tight">War room</div>
+          <div class="text-sm text-mute mt-1">Cả team trong group chat</div>
+        </div>
+        <div class="beat" style="animation-delay:2.15s">
+          <div class="font-mono text-xs text-mute mb-1">Lặp lại</div>
+          <div class="font-display font-bold text-lg leading-tight text-fire">Mỗi 10m</div>
+          <div class="text-sm text-mute mt-1">Tối đa 50 lần rồi báo admin</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="mt-12 flex flex-wrap gap-2 font-mono text-[.6875rem]">
+      <span class="px-2 py-1 border border-fire text-fire">FIRING</span>
+      <span class="px-2 py-1 border border-banana bg-banana/20">ACKED</span>
+      <span class="px-2 py-1 border border-ok text-ok">RESOLVED</span>
+      <span class="px-2 py-1 border border-rule text-mute">SILENCED</span>
+      <span class="px-2 py-1 border border-rule text-mute ml-auto">Go · Terraform · DynamoDB · Apache-2.0</span>
+    </div>
+  </div>
+</header>
+
+<div class="max-w-[1180px] mx-auto px-6 lg:px-10 flex gap-12">
+
+  <!-- rail -->
+  <nav class="rail hidden lg:block w-52 shrink-0 py-16">
+    <div class="sticky top-16 space-y-[2px]">
+      <div class="eyebrow text-mute mb-4">Nội dung</div>
+      <a href="#decisions" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Quyết định</a>
+      <a href="#why" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Bối cảnh</a>
+      <a href="#scope" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Phạm vi</a>
+      <a href="#reqs" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Requirements</a>
+      <a href="#arch" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Kiến trúc</a>
+      <a href="#flow" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Luồng E2E</a>
+      <a href="#data" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Data model</a>
+      <a href="#slo" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">SLO</a>
+      <a href="#cost" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Chi phí</a>
+      <a href="#plan" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Kế hoạch</a>
+      <a href="#risks" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Rủi ro</a>
+      <a href="#ask" class="relative block pl-6 py-[5px] text-sm text-mute hover:text-ink transition-colors">Cần bạn chốt</a>
+      <div class="pt-6 mt-6 border-t border-rule">
+        <div class="eyebrow text-mute mb-2">Tiến độ duyệt</div>
+        <div class="font-mono text-2xl font-medium"><span id="cnt">0</span><span class="text-mute text-base">/20</span></div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="min-w-0 flex-1 py-16 space-y-24">
+
+    <!-- DECISIONS -->
+    <section id="decisions">
+      <div class="eyebrow text-mute mb-3">01 — Duyệt trước khi code</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-3">Mười quyết định</h2>
+      <p class="text-mute max-w-2xl mb-8">Tick từng dòng khi bạn đồng ý. Mọi thứ phía dưới đều bắt nguồn từ mười lựa chọn này.</p>
+
+      <ol class="border-t border-ink">
+        <li class="border-b border-rule py-5 flex gap-4">
+          <input type="checkbox" class="dec mt-1 w-4 h-4 accent-banana shrink-0" aria-label="Duyệt D1">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3">
+              <span class="font-mono text-xs text-mute">D1</span>
+              <span class="font-display font-bold text-lg">Step Functions Standard cho escalation</span>
+            </div>
+            <p class="text-sm text-mute mt-1">Wait state có sẵn, retry có sẵn, và xem được từng execution dạng đồ thị — đúng yêu cầu "dễ trace". Đắt hơn cron sweeper khoảng 1&nbsp;USD/tháng.</p>
+          </div>
+        </li>
+        <li class="border-b border-rule py-5 flex gap-4">
+          <input type="checkbox" class="dec mt-1 w-4 h-4 accent-banana shrink-0" aria-label="Duyệt D2">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3"><span class="font-mono text-xs text-mute">D2</span><span class="font-display font-bold text-lg">API Gateway HTTP API</span></div>
+            <p class="text-sm text-mute mt-1">1&nbsp;USD/triệu request, có throttle và custom domain. Rẻ hơn REST API bốn lần.</p>
+          </div>
+        </li>
+        <li class="border-b border-rule py-5 flex gap-4">
+          <input type="checkbox" class="dec mt-1 w-4 h-4 accent-banana shrink-0" aria-label="Duyệt D3">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3"><span class="font-mono text-xs text-mute">D3</span><span class="font-display font-bold text-lg">DynamoDB single-table, on-demand</span></div>
+            <p class="text-sm text-mute mt-1">Không có chi phí lúc rảnh. TTL miễn phí lo việc dọn dữ liệu cũ.</p>
+          </div>
+        </li>
+        <li class="border-b border-rule py-5 flex gap-4">
+          <input type="checkbox" class="dec mt-1 w-4 h-4 accent-banana shrink-0" aria-label="Duyệt D4">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3"><span class="font-mono text-xs text-mute">D4</span><span class="font-display font-bold text-lg">SQS FIFO, MessageGroupId = fingerprint</span></div>
+            <p class="text-sm text-mute mt-1">Giữ đúng thứ tự <span class="font-mono text-xs">firing → resolved</span> cho cùng một alert. Một triệu request đầu mỗi tháng miễn phí.</p>
+          </div>
+        </li>
+        <li class="border-b border-rule py-5 flex gap-4">
+          <input type="checkbox" class="dec mt-1 w-4 h-4 accent-banana shrink-0" aria-label="Duyệt D5">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3"><span class="font-mono text-xs text-mute">D5</span><span class="font-display font-bold text-lg">Config bằng YAML trong Git, không làm UI</span></div>
+            <p class="text-sm text-mute mt-1">Lịch trực, escalation policy, route đều nằm trong một file, apply bằng <span class="font-mono text-xs">bananactl</span>. Review qua PR, rollback bằng git revert. Đây là thứ cắt được nhiều effort nhất khỏi MVP.</p>
+          </div>
+        </li>
+        <li class="border-b border-rule py-5 flex gap-4">
+          <input type="checkbox" class="dec mt-1 w-4 h-4 accent-banana shrink-0" aria-label="Duyệt D6">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3"><span class="font-mono text-xs text-mute">D6</span><span class="font-display font-bold text-lg">Cognito + Google cho người, token cho webhook</span></div>
+            <p class="text-sm text-mute mt-1">Không phải viết dòng auth nào, miễn phí dưới 50k MAU. RBAC phase 2 chỉ cần map Cognito Group sang JWT claim.</p>
+          </div>
+        </li>
+        <li class="border-b border-rule py-5 flex gap-4">
+          <input type="checkbox" class="dec mt-1 w-4 h-4 accent-banana shrink-0" aria-label="Duyệt D7">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3"><span class="font-mono text-xs text-mute">D7</span><span class="font-display font-bold text-lg">Google Calendar qua secret iCal URL</span></div>
+            <p class="text-sm text-mute mt-1">Read-only, poll 5 phút, không cần OAuth flow. Grafana OnCall cũng làm đúng như vậy. Tiết kiệm cả tuần.</p>
+          </div>
+        </li>
+        <li class="border-b border-rule py-5 flex gap-4">
+          <input type="checkbox" class="dec mt-1 w-4 h-4 accent-banana shrink-0" aria-label="Duyệt D8">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3"><span class="font-mono text-xs text-mute">D8</span><span class="font-display font-bold text-lg">Telegram trước, iOS sau</span></div>
+            <p class="text-sm text-mute mt-1">Nút Ack ngay trong tin nhắn, miễn phí, làm xong trong 2–3 ngày. iOS app tốn 99&nbsp;USD/năm và có rủi ro Apple từ chối entitlement.</p>
+          </div>
+        </li>
+        <li class="border-b border-rule py-5 flex gap-4">
+          <input type="checkbox" class="dec mt-1 w-4 h-4 accent-banana shrink-0" aria-label="Duyệt D9">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3"><span class="font-mono text-xs text-mute">D9</span><span class="font-display font-bold text-lg">SLA board trên Grafana on-prem sẵn có</span></div>
+            <p class="text-sm text-mute mt-1">CloudWatch EMF → CloudWatch datasource → Grafana Public Dashboard. Không tốn thêm đồng nào.</p>
+          </div>
+        </li>
+        <li class="border-b border-rule py-5 flex gap-4">
+          <input type="checkbox" class="dec mt-1 w-4 h-4 accent-banana shrink-0" aria-label="Duyệt D10">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-baseline gap-x-3"><span class="font-mono text-xs text-mute">D10</span><span class="font-display font-bold text-lg">Hexagonal Go — chạy được cả Lambda lẫn RKE2</span></div>
+            <p class="text-sm text-mute mt-1">Core domain không import AWS SDK. Hai adapter cho mỗi port. Khoảng 150 dòng code thêm, đổi lấy việc không bị khoá vào AWS.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- WHY -->
+    <section id="why">
+      <div class="eyebrow text-mute mb-3">02 — Bối cảnh</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-6">Tại sao là bây giờ</h2>
+      <div class="border-l-2 border-fire pl-5 mb-8">
+        <p class="text-lg leading-relaxed">Grafana OnCall OSS đã bị archive ngày <span class="font-mono">2026-03-24</span>. Cùng ngày đó, Cloud Connection — thứ cung cấp SMS, phone call và mobile push cho bản self-hosted — cũng bị tắt.</p>
+        <p class="text-mute mt-2 text-sm">Nghĩa là không còn phương án "dùng tạm rồi tính sau".</p>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Hệ thống</th><th>Lấy gì</th><th>Bỏ gì</th></tr></thead>
+          <tbody>
+            <tr><td class="font-medium">Grafana OnCall</td><td>Data model Integration → Route → Escalation Chain → Schedule. Alert grouping. Lịch trực đọc từ iCal.</td><td>Django + Celery + Redis + Postgres — nặng và tốn tiền lúc rảnh. Phụ thuộc Grafana Cloud để notify.</td></tr>
+            <tr><td class="font-medium">GoAlert</td><td>Model escalation policy → step → target rõ ràng. Single binary. Override shift thủ công.</td><td>Bắt buộc Twilio. Không có Telegram. Postgres phải chạy 24/7.</td></tr>
+            <tr><td class="font-medium">Alertmanager</td><td>Routing tree với label matcher, group_by, silence. Đây là design routing tốt nhất — copy thẳng.</td><td>Không biết escalate theo người và theo thời gian, không có ack. Chính là chỗ BananaOnCall bù vào.</td></tr>
+            <tr><td class="font-medium">PagerDuty</td><td>Khái niệm urgency, notification rule per-user, maintenance window, status page.</td><td>Tính tiền theo đầu người. Năm user đã hơn 100&nbsp;USD/tháng.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SCOPE -->
+    <section id="scope">
+      <div class="eyebrow text-mute mb-3">03 — Phạm vi</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-8">Làm gì và cố tình không làm gì</h2>
+      <div class="grid md:grid-cols-2 gap-10">
+        <div>
+          <div class="eyebrow text-ok mb-4 pb-2 border-b border-ok">Có trong MVP</div>
+          <ul class="space-y-3 text-sm">
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute shrink-0 mt-[2px]">G1</span><span>Nhận webhook từ Alertmanager, Grafana Alerting, hoặc JSON tuỳ ý</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute shrink-0 mt-[2px]">G2</span><span>Gom nhóm và khử trùng lặp — một vấn đề là một alert, không spam</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute shrink-0 mt-[2px]">G3</span><span>Route theo label, escalation nhiều bước có timeout</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute shrink-0 mt-[2px]">G4</span><span>Tìm người đang trực từ Google Calendar</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute shrink-0 mt-[2px]">G5</span><span>Telegram kèm nút Ack, Resolve, Silence</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute shrink-0 mt-[2px]">G6</span><span>Timeline đầy đủ cho mọi alert</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute shrink-0 mt-[2px]">G7</span><span>SLA board công khai trên Grafana</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute shrink-0 mt-[2px]">G8</span><span>Hạ tầng bằng Terraform, config bằng YAML trong Git</span></li>
+          </ul>
+        </div>
+        <div>
+          <div class="eyebrow text-fire mb-4 pb-2 border-b border-fire">Không làm — và đó là hợp đồng</div>
+          <ul class="space-y-3 text-sm text-mute">
+            <li>Web UI đầy đủ — dùng CLI, Grafana và Telegram thay thế</li>
+            <li>iOS app — phase 3</li>
+            <li>RBAC chi tiết — MVP chỉ có admin và responder</li>
+            <li>Multi-tenant — nhưng data model đã chừa chỗ</li>
+            <li>SMS và voice call — đắt, Telegram đủ dùng</li>
+            <li>Incident management, war room, postmortem — phase 4</li>
+            <li>Multi-region active-active — phase 4</li>
+            <li>ML alert correlation — không bao giờ, cho MVP</li>
+          </ul>
+          <p class="text-xs text-mute mt-6 pt-4 border-t border-rule">Rủi ro lớn nhất của project này không phải kỹ thuật mà là scope creep. Danh sách bên phải chính là thứ giữ MVP về đích.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- REQUIREMENTS -->
+    <section id="reqs">
+      <div class="eyebrow text-mute mb-3">04 — Requirements</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-3">Functional requirements</h2>
+      <p class="text-mute max-w-2xl mb-8">Mỗi nhóm mở ra được. Cột bên phải là điều kiện nghiệm thu — không mơ hồ.</p>
+
+      <div class="border-t border-ink">
+        <details class="border-b border-rule group">
+          <summary class="py-4 flex items-center gap-3"><span class="chev text-banana transition-transform">▸</span><span class="font-mono text-xs text-mute">FR-1</span><span class="font-display font-bold text-lg">Nhận alert</span></summary>
+          <div class="tbl-wrap pb-6"><table>
+            <thead><tr><th class="w-24">ID</th><th>Yêu cầu</th><th>Nghiệm thu</th></tr></thead>
+            <tbody>
+              <tr><td class="font-mono text-xs">FR-1.1</td><td>Webhook Alertmanager</td><td>Trả 202 trong dưới 500ms p95</td></tr>
+              <tr><td class="font-mono text-xs">FR-1.2</td><td>Webhook Grafana Alerting</td><td>Cùng contract</td></tr>
+              <tr><td class="font-mono text-xs">FR-1.3</td><td>Webhook generic, map field bằng JSONPath</td><td>Test với payload tuỳ ý</td></tr>
+              <tr><td class="font-mono text-xs">FR-1.4</td><td>Xác thực bằng integration key 32 byte trong path</td><td>Key sai trả 401, không lộ thông tin</td></tr>
+              <tr><td class="font-mono text-xs">FR-1.5</td><td>Không mất alert khi downstream lỗi</td><td>Ghi SQS xong mới trả 202, có DLQ</td></tr>
+              <tr><td class="font-mono text-xs">FR-1.6</td><td>Gửi lại cùng payload không tạo alert trùng</td><td>MessageDeduplicationId + conditional write</td></tr>
+            </tbody></table></div>
+        </details>
+
+        <details class="border-b border-rule">
+          <summary class="py-4 flex items-center gap-3"><span class="chev text-banana transition-transform">▸</span><span class="font-mono text-xs text-mute">FR-2</span><span class="font-display font-bold text-lg">Gom nhóm và khử trùng lặp</span></summary>
+          <div class="tbl-wrap pb-6"><table>
+            <thead><tr><th class="w-24">ID</th><th>Yêu cầu</th><th>Nghiệm thu</th></tr></thead>
+            <tbody>
+              <tr><td class="font-mono text-xs">FR-2.1</td><td>Fingerprint = sha256 của integration + label trong group_by</td><td>10 alert cùng fingerprint chỉ notify một lần</td></tr>
+              <tr><td class="font-mono text-xs">FR-2.2</td><td>group_by cấu hình được, mặc định alertname, namespace, service</td><td>Đổi trong YAML, apply, có hiệu lực</td></tr>
+              <tr><td class="font-mono text-xs">FR-2.3</td><td>Alert mới khi group đang mở thì gộp vào, không escalate lại</td><td>alert_count tăng, không có tin nhắn mới</td></tr>
+              <tr><td class="font-mono text-xs">FR-2.4</td><td>Alert mới khi group đã đóng thì tạo group mới</td><td></td></tr>
+              <tr><td class="font-mono text-xs">FR-2.5</td><td>Alertmanager gửi resolved thì tự đóng group</td><td>Timeline ghi resolved_by system</td></tr>
+            </tbody></table></div>
+        </details>
+
+        <details class="border-b border-rule">
+          <summary class="py-4 flex items-center gap-3"><span class="chev text-banana transition-transform">▸</span><span class="font-mono text-xs text-mute">FR-3</span><span class="font-display font-bold text-lg">Routing và escalation</span></summary>
+          <div class="tbl-wrap pb-6"><table>
+            <thead><tr><th class="w-24">ID</th><th>Yêu cầu</th><th>Nghiệm thu</th></tr></thead>
+            <tbody>
+              <tr><td class="font-mono text-xs">FR-3.1</td><td>Route theo label matcher, first-match-wins, có route mặc định</td><td>Route mặc định là bắt buộc</td></tr>
+              <tr><td class="font-mono text-xs">FR-3.2</td><td>Escalation policy nhiều bước, mỗi bước có target và wait_after</td><td></td></tr>
+              <tr><td class="font-mono text-xs">FR-3.3</td><td>Target: người đang trực, một user cụ thể, hoặc một group chat</td><td></td></tr>
+              <tr><td class="font-mono text-xs">FR-3.4</td><td>Chưa ack sau wait_after thì sang bước tiếp</td><td>Không ack 5 phút, người thứ hai nhận trong 5m ± 15s</td></tr>
+              <tr><td class="font-mono text-xs">FR-3.5</td><td>Ack hoặc resolve thì dừng escalation ngay</td><td></td></tr>
+              <tr><td class="font-mono text-xs">FR-3.6</td><td>Bước cuối lặp lại đến khi có người trả lời</td><td>Chống trường hợp cả team ngủ. Tối đa 50 lần</td></tr>
+              <tr><td class="font-mono text-xs">FR-3.7</td><td>Escalation sống sót qua deploy và Lambda restart</td><td>State ở Step Functions và DynamoDB, không giữ trong memory</td></tr>
+            </tbody></table></div>
+        </details>
+
+        <details class="border-b border-rule">
+          <summary class="py-4 flex items-center gap-3"><span class="chev text-banana transition-transform">▸</span><span class="font-mono text-xs text-mute">FR-4</span><span class="font-display font-bold text-lg">Lịch trực</span></summary>
+          <div class="tbl-wrap pb-6"><table>
+            <thead><tr><th class="w-24">ID</th><th>Yêu cầu</th><th>Nghiệm thu</th></tr></thead>
+            <tbody>
+              <tr><td class="font-mono text-xs">FR-4.1</td><td>Sync từ Google Calendar iCal mỗi 5 phút</td><td>Sửa lịch, 5 phút sau CLI trả về đúng người</td></tr>
+              <tr><td class="font-mono text-xs">FR-4.2</td><td>Map event sang user qua tiêu đề <span class="font-mono text-xs">oncall: tên</span></td><td></td></tr>
+              <tr><td class="font-mono text-xs">FR-4.3</td><td>Hỗ trợ event lặp lại theo RRULE</td><td>Test với rotation hàng tuần</td></tr>
+              <tr><td class="font-mono text-xs">FR-4.4</td><td>Trả lời "ai đang trực lúc T" dưới 50ms</td><td>Materialize shift vào DB, không parse ICS lúc runtime</td></tr>
+              <tr><td class="font-mono text-xs">FR-4.5</td><td>Override thủ công đè lên lịch</td><td>Một lệnh CLI</td></tr>
+              <tr><td class="font-mono text-xs bg-banana/25">FR-4.6</td><td class="bg-banana/25">Không có ai trực thì fallback và báo admin</td><td class="bg-banana/25">Bắt buộc — lịch trống hoặc sync lỗi là failure mode hay bị quên nhất</td></tr>
+              <tr><td class="font-mono text-xs">FR-4.7</td><td>Lưu UTC, hiển thị theo Asia/Ho_Chi_Minh</td><td></td></tr>
+            </tbody></table></div>
+        </details>
+
+        <details class="border-b border-rule">
+          <summary class="py-4 flex items-center gap-3"><span class="chev text-banana transition-transform">▸</span><span class="font-mono text-xs text-mute">FR-5</span><span class="font-display font-bold text-lg">Thông báo và phản hồi</span></summary>
+          <div class="tbl-wrap pb-6"><table>
+            <thead><tr><th class="w-24">ID</th><th>Yêu cầu</th><th>Nghiệm thu</th></tr></thead>
+            <tbody>
+              <tr><td class="font-mono text-xs">FR-5.1</td><td>Telegram DM với nút Ack, Resolve, Silence 1h, Runbook</td><td>Bấm Ack đổi state dưới 2 giây</td></tr>
+              <tr><td class="font-mono text-xs">FR-5.2</td><td>User liên kết tài khoản bằng lệnh <span class="font-mono text-xs">/link</span></td><td></td></tr>
+              <tr><td class="font-mono text-xs">FR-5.3</td><td>Telegram lỗi thì retry 3 lần, hết thì escalate ngay</td><td>Không chờ hết wait_after</td></tr>
+              <tr><td class="font-mono text-xs">FR-5.4</td><td>Không gửi trùng khi hệ thống retry</td><td>dedupKey theo group, step, kênh, user</td></tr>
+              <tr><td class="font-mono text-xs">FR-5.5</td><td>Sau khi ack thì sửa tin nhắn cũ thành "Acked by @X"</td><td></td></tr>
+              <tr><td class="font-mono text-xs">FR-5.6</td><td>Tin nhắn có đủ severity, summary, label, thời gian, link runbook và Grafana</td><td>Đọc là biết phải làm gì, không cần mở laptop</td></tr>
+              <tr><td class="font-mono text-xs">FR-6.3</td><td>State machine chặt, transition sai trả 409</td><td>Idempotent với at-least-once delivery</td></tr>
+              <tr><td class="font-mono text-xs">FR-6.5</td><td>Mọi thay đổi ghi timeline: ai, làm gì, lúc nào, từ đâu</td><td></td></tr>
+            </tbody></table></div>
+        </details>
+
+        <details class="border-b border-rule">
+          <summary class="py-4 flex items-center gap-3"><span class="chev text-banana transition-transform">▸</span><span class="font-mono text-xs text-mute">FR-8</span><span class="font-display font-bold text-lg">SLA và tự giám sát</span></summary>
+          <div class="tbl-wrap pb-6"><table>
+            <thead><tr><th class="w-24">ID</th><th>Yêu cầu</th><th>Nghiệm thu</th></tr></thead>
+            <tbody>
+              <tr><td class="font-mono text-xs">FR-8.1</td><td>Emit metric qua CloudWatch EMF cho mọi sự kiện</td><td></td></tr>
+              <tr><td class="font-mono text-xs">FR-8.2</td><td>Grafana board nội bộ: availability, latency, delivery, MTTA, MTTR</td><td></td></tr>
+              <tr><td class="font-mono text-xs">FR-8.3</td><td>Board công khai cho end user: uptime, error budget còn lại, lịch sử sự cố</td><td>Không cần đăng nhập</td></tr>
+              <tr><td class="font-mono text-xs bg-banana/25">FR-8.4</td><td class="bg-banana/25">Dead-man switch chạy trên hạ tầng độc lập</td><td class="bg-banana/25">Bắt buộc — BananaOnCall không thể tự báo động khi chính nó chết. Canary trên RKE2 ping mỗi phút, im lặng quá 3 phút thì bot Telegram thứ hai báo</td></tr>
+            </tbody></table></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ARCH -->
+    <section id="arch">
+      <div class="eyebrow text-mute mb-3">05 — Kiến trúc</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-3">Bảy Lambda, không hơn</h2>
+      <p class="text-mute max-w-2xl mb-8">Một Lambda một trách nhiệm — nhưng không phải một Lambda cho mỗi endpoint. Đủ tách để trace, chưa đủ nhiều để thành distributed monolith.</p>
+
+      <div class="bg-ink text-paper overflow-x-auto mb-10">
+        <pre class="font-mono text-[11px] leading-[1.65] p-6 min-w-[640px]">┌──────────────────────────────────────────────────────────────────┐
+│  NGUỒN — RKE2 cluster on-prem                                    │
+│  Alertmanager · Grafana Alerting · Elastic Watcher · CI          │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │ HTTPS webhook
+                              ▼
+                  ┌───────────────────────────┐
+                  │  API Gateway HTTP API     │  custom domain + throttle
+                  └─────────────┬─────────────┘
+         ┌────────────────────┬─┴──────────────────┐
+         ▼                    ▼                    ▼
+  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐
+  │ λ ingest     │    │ λ api        │    │ λ telegram-hook  │
+  │ verify+parse │    │ ack/resolve  │    │ callback_query   │
+  └──────┬───────┘    └──────┬───────┘    └────────┬─────────┘
+         │ SQS FIFO          │                     │
+         │ grp=fingerprint   │                     │
+         ▼                   │                     │
+  ┌──────────────┐           │                     │
+  │ λ processor  │           │                     │
+  │ dedupe·group │           │                     │
+  │ match route  │           │                     │
+  └──────┬───────┘           │                     │
+         │ StartExecution    ▼                     ▼
+         ▼          ┌───────────────────────────────────────┐
+  ┌───────────────┐ │           DynamoDB                    │
+  │ Step Functions│◄┤  single-table · GSI1 · TTL            │
+  │ Notify→Wait   │─►│  AlertGroup·Shift·User·Policy·Route  │
+  │ →Check→Choice │ └───────────────────────────────────────┘
+  └──────┬────────┘
+         ▼
+  ┌──────────────┐        ┌────────────────────────┐
+  │ λ notifier   │───────►│ Telegram Bot API       │
+  │ ai đang trực │        │ phase 3: APNs          │
+  └──────────────┘        └────────────────────────┘
+
+  EventBridge Scheduler
+     ├─ rate(5m) → λ schedule-sync ──► Google Calendar iCal
+     ├─ rate(1h) → λ sla-rollup    ──► DynamoDB rollup
+     └─ rate(1m) → λ healthcheck   ──► dead-man switch
+
+  Mọi λ ──EMF──► CloudWatch ──► Grafana on-prem ──► Public board</pre>
+      </div>
+
+      <h3 class="font-display font-bold text-xl mb-4">Escalation engine — ba phương án</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th></th><th class="text-ink">A · Step Functions</th><th>B · Cron sweeper 1 phút</th><th>C · EventBridge one-time</th></tr></thead>
+          <tbody>
+            <tr><td class="text-mute">Độ chính xác</td><td class="font-medium">±1s</td><td>±60s</td><td>±1s</td></tr>
+            <tr><td class="text-mute">Trace và debug</td><td class="font-medium">Đồ thị execution có sẵn</td><td>Phải đọc log</td><td>Phải đọc log</td></tr>
+            <tr><td class="text-mute">Retry</td><td class="font-medium">Built-in</td><td>Tự code</td><td>Tự code</td></tr>
+            <tr><td class="text-mute">Code phải viết</td><td class="font-medium">Ít nhất</td><td>Nhiều nhất — cần distributed lock</td><td>Trung bình</td></tr>
+            <tr><td class="text-mute">Chi phí / tháng</td><td class="font-medium">~1,03&nbsp;USD</td><td>~0,10&nbsp;USD</td><td>~0,05&nbsp;USD</td></tr>
+            <tr><td class="text-mute">Chạy ngoài AWS</td><td class="text-fire">Không</td><td class="text-ok">Được</td><td class="text-fire">Không</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-sm text-mute mt-4 max-w-2xl">Chọn A. Chênh 1&nbsp;USD/tháng không đáng so với hàng chục giờ debug. Nhược điểm khoá vào AWS được xử lý bằng interface <span class="font-mono text-xs">EscalationEngine</span> với hai implementation: <span class="font-mono text-xs">sfn</span> cho Lambda và <span class="font-mono text-xs">ticker</span> cho khi chạy trên k8s.</p>
+    </section>
+
+    <!-- FLOW -->
+    <section id="flow">
+      <div class="eyebrow text-mute mb-3">06 — Luồng end-to-end</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-8">Từ alert đến ack</h2>
+      <ol class="relative border-l border-rule ml-3 space-y-7 pl-8">
+        <li class="relative"><span class="absolute -left-[38px] top-[3px] w-3 h-3 rounded-full bg-fire ring-4 ring-paper"></span>
+          <div class="font-mono text-xs text-mute mb-1">T+0s</div>
+          <div class="font-medium">Alertmanager POST tới <span class="font-mono text-xs">/v1/int/{key}/alertmanager</span></div></li>
+        <li class="relative"><span class="absolute -left-[35px] top-[6px] w-[6px] h-[6px] rounded-full bg-ink"></span>
+          <div class="font-mono text-xs text-mute mb-1">T+0.1s · λ ingest</div>
+          <div class="text-sm">Verify key, normalize, đẩy vào SQS FIFO, trả 202. Không chạm database.</div></li>
+        <li class="relative"><span class="absolute -left-[35px] top-[6px] w-[6px] h-[6px] rounded-full bg-ink"></span>
+          <div class="font-mono text-xs text-mute mb-1">T+0.5s · λ processor</div>
+          <div class="text-sm">Tính fingerprint. Tra dedupe pointer bằng một GetItem, không scan. Chưa có group thì tạo mới, match route, gọi StartExecution.</div></li>
+        <li class="relative"><span class="absolute -left-[35px] top-[6px] w-[6px] h-[6px] rounded-full bg-ink"></span>
+          <div class="font-mono text-xs text-mute mb-1">T+1.5s · λ notifier</div>
+          <div class="text-sm">Tra ai đang trực, lấy chat_id, gửi tin nhắn kèm bốn nút. Ghi lại provider message id để sau này sửa được.</div></li>
+        <li class="relative"><span class="absolute -left-[38px] top-[3px] w-3 h-3 rounded-full bg-banana ring-4 ring-paper"></span>
+          <div class="font-mono text-xs text-mute mb-1">T+2m · người trực bấm Ack</div>
+          <div class="text-sm">Telegram gọi webhook. Verify secret token. UpdateItem có ConditionExpression <span class="font-mono text-xs">state = firing</span> nên bấm hai lần cũng không sao. Sửa tin nhắn cũ, ghi timeline, emit <span class="font-mono text-xs">time_to_ack_seconds</span>.</div></li>
+        <li class="relative"><span class="absolute -left-[35px] top-[6px] w-[6px] h-[6px] rounded-full bg-ink"></span>
+          <div class="font-mono text-xs text-mute mb-1">T+6m30s · Step Functions kiểm tra</div>
+          <div class="text-sm">State đã là acked → workflow kết thúc, không escalate. Nếu vẫn firing thì sang người thứ hai.</div></li>
+        <li class="relative"><span class="absolute -left-[38px] top-[3px] w-3 h-3 rounded-full bg-ok ring-4 ring-paper"></span>
+          <div class="font-mono text-xs text-mute mb-1">T+25m · Alertmanager gửi resolved</div>
+          <div class="text-sm">Group đóng, TTL 90 ngày bắt đầu đếm, emit <span class="font-mono text-xs">time_to_resolve_seconds</span>.</div></li>
+      </ol>
+    </section>
+
+    <!-- DATA -->
+    <section id="data">
+      <div class="eyebrow text-mute mb-3">07 — Dữ liệu</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-3">Một bảng, sáu access pattern</h2>
+      <p class="text-mute max-w-2xl mb-8">Không có query nào phải scan. Pattern quan trọng nhất — tra xem fingerprint này đã có alert đang mở chưa — tốn đúng một GetItem.</p>
+      <div class="tbl-wrap mb-8">
+        <table>
+          <thead><tr><th>Entity</th><th>pk</th><th>sk</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr><td class="font-medium">AlertGroup</td><td class="font-mono text-xs">AG#&lt;ulid&gt;</td><td class="font-mono text-xs">META</td><td>GSI1 theo state để list alert đang firing</td></tr>
+            <tr><td class="font-medium">Alert thô</td><td class="font-mono text-xs">AG#&lt;ulid&gt;</td><td class="font-mono text-xs">ALERT#&lt;ts&gt;</td><td>TTL 90 ngày</td></tr>
+            <tr><td class="font-medium">Timeline</td><td class="font-mono text-xs">AG#&lt;ulid&gt;</td><td class="font-mono text-xs">LOG#&lt;ts&gt;</td><td>Một query lấy hết alert kèm lịch sử</td></tr>
+            <tr class="bg-banana/20"><td class="font-medium">Dedupe pointer</td><td class="font-mono text-xs">FP#&lt;int&gt;#&lt;fp&gt;</td><td class="font-mono text-xs">OPEN</td><td>Conditional put chống race hai alert đến cùng lúc</td></tr>
+            <tr><td class="font-medium">Escalation policy</td><td class="font-mono text-xs">EP#&lt;id&gt;</td><td class="font-mono text-xs">STEP#&lt;order&gt;</td><td></td></tr>
+            <tr><td class="font-medium">Shift</td><td class="font-mono text-xs">SCHED#&lt;id&gt;</td><td class="font-mono text-xs">SHIFT#&lt;startISO&gt;</td><td>Query ngược, limit 1 để biết ai đang trực</td></tr>
+            <tr><td class="font-medium">Contact</td><td class="font-mono text-xs">USER#&lt;id&gt;</td><td class="font-mono text-xs">CONTACT#telegram</td><td>GSI1 theo chat_id để tra ngược từ Telegram</td></tr>
+            <tr><td class="font-medium">SLA rollup</td><td class="font-mono text-xs">SLO#&lt;sli&gt;</td><td class="font-mono text-xs">DAY#&lt;date&gt;</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="border border-rule p-5">
+        <div class="eyebrow text-mute mb-2">Race condition duy nhất đáng lo</div>
+        <p class="text-sm">Hai alert cùng fingerprint đến đồng thời sẽ cùng tạo group. SQS FIFO với MessageGroupId bằng fingerprint đã serialize chúng, nhưng vẫn phải có ConditionExpression trên dedupe pointer. Ai thắng thì tạo group, ai thua thì đọc group_id rồi gộp vào.</p>
+      </div>
+    </section>
+
+    <!-- SLO -->
+    <section id="slo">
+      <div class="eyebrow text-mute mb-3">08 — Cam kết</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-2">99,9% nghĩa là gì</h2>
+      <p class="font-mono text-sm text-mute mb-8">Error budget = 43 phút 49 giây mỗi tháng</p>
+      <div class="tbl-wrap mb-6">
+        <table>
+          <thead><tr><th>SLI</th><th>Định nghĩa</th><th class="w-24">Target</th></tr></thead>
+          <tbody>
+            <tr><td class="font-medium">Ingest availability</td><td>Tỉ lệ request vào endpoint webhook không trả 5xx, cửa sổ 28 ngày</td><td class="font-mono font-medium">99,9%</td></tr>
+            <tr><td class="font-medium">Notification latency</td><td>Tỉ lệ alert có tin nhắn đầu tiên gửi đi trong vòng 30 giây</td><td class="font-mono font-medium">99%</td></tr>
+            <tr><td class="font-medium">Delivery success</td><td>Tỉ lệ tin nhắn được provider xác nhận đã nhận</td><td class="font-mono font-medium">99,5%</td></tr>
+            <tr><td class="font-medium">Escalation correctness</td><td>Tỉ lệ bước escalation chạy đúng hạn trong sai số 30 giây</td><td class="font-mono font-medium">99%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="border-l-2 border-banana pl-5">
+        <div class="eyebrow text-mute mb-2">Cần thống nhất trước khi ký SLA</div>
+        <p class="text-sm">Serverless một region thực tế đạt khoảng 99,95% ở tầng ứng dụng, nhưng một sự cố region-wide của AWS sẽ ăn hết error budget của cả quý. Đề xuất MVP cam kết 99,9% <span class="font-medium">đo tại tầng ứng dụng</span> và ghi rõ loại trừ region outage trong văn bản SLA — thay vì hứa 99,9% tuyệt đối rồi buộc phải làm multi-region ngay từ đầu.</p>
+      </div>
+    </section>
+
+    <!-- COST -->
+    <section id="cost">
+      <div class="eyebrow text-mute mb-3">09 — Chi phí</div>
+      <div class="flex flex-wrap items-end gap-x-6 gap-y-2 mb-3">
+        <h2 class="font-display font-bold text-4xl tracking-[-0.02em]">Khoảng 8&nbsp;USD một tháng</h2>
+      </div>
+      <p class="text-mute max-w-2xl mb-8">Giả định 3.000 alert, 10.000 tin nhắn, 150.000 request, 5 người, một region Singapore. Cần verify lại trên AWS Pricing Calculator trước khi chốt ngân sách.</p>
+      <div class="tbl-wrap mb-6">
+        <table>
+          <thead><tr><th>Dịch vụ</th><th>Cách tính</th><th class="text-right w-28">USD/tháng</th></tr></thead>
+          <tbody>
+            <tr><td>Lambda</td><td class="text-mute">~200k invoke, phần lớn trong free tier</td><td class="text-right font-mono">0,30</td></tr>
+            <tr><td>API Gateway HTTP</td><td class="text-mute">150k request</td><td class="text-right font-mono">0,15</td></tr>
+            <tr><td>DynamoDB on-demand</td><td class="text-mute">~500k đọc, 200k ghi</td><td class="text-right font-mono">0,50</td></tr>
+            <tr><td>SQS FIFO</td><td class="text-mute">Trong free tier</td><td class="text-right font-mono">0,00</td></tr>
+            <tr><td>Step Functions</td><td class="text-mute">45k state transition, 4k đầu miễn phí</td><td class="text-right font-mono">1,03</td></tr>
+            <tr><td>EventBridge Scheduler</td><td class="text-mute">~45k invoke</td><td class="text-right font-mono">0,05</td></tr>
+            <tr><td>CloudWatch Logs</td><td class="text-mute">~2GB ingest</td><td class="text-right font-mono">1,20</td></tr>
+            <tr class="bg-banana/20"><td>CloudWatch Metrics</td><td class="text-mute">15 custom metric — khoản lớn nhất, hơi bất ngờ</td><td class="text-right font-mono font-medium">4,50</td></tr>
+            <tr><td>SSM · Cognito · ACM · Telegram</td><td class="text-mute">Free tier</td><td class="text-right font-mono">0,00</td></tr>
+            <tr><td>Route 53</td><td class="text-mute">Một hosted zone</td><td class="text-right font-mono">0,50</td></tr>
+            <tr><td>Grafana</td><td class="text-mute">Dùng instance on-prem sẵn có</td><td class="text-right font-mono">0,00</td></tr>
+          </tbody>
+          <tfoot><tr class="border-t-2 border-ink"><td class="font-display font-bold text-lg pt-4">Tổng</td><td></td><td class="text-right font-mono font-bold text-lg pt-4">8,25</td></tr></tfoot>
+        </table>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-6 text-sm">
+        <div class="border border-rule p-5">
+          <div class="eyebrow text-mute mb-2">Muốn rẻ hơn nữa</div>
+          <p class="text-mute">Remote-write metric thẳng vào Prometheus on-prem qua VPN thay vì dùng CloudWatch custom metric — tiết kiệm 4,50&nbsp;USD, tức hơn một nửa hoá đơn. Đổi lại phải mở đường mạng từ Lambda về on-prem.</p>
+        </div>
+        <div class="border border-rule p-5">
+          <div class="eyebrow text-mute mb-2">So sánh</div>
+          <p class="text-mute">PagerDuty 5 người khoảng 105–210&nbsp;USD/tháng. Grafana Cloud IRM khoảng 100&nbsp;USD. BananaOnCall rẻ hơn 15 đến 25 lần, và chi phí tăng theo lượng alert chứ không theo số người.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PLAN -->
+    <section id="plan">
+      <div class="eyebrow text-mute mb-3">10 — Kế hoạch</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-8">Bốn giai đoạn</h2>
+
+      <div class="space-y-px">
+        <div class="border border-ink p-6">
+          <div class="flex flex-wrap items-baseline gap-x-4 mb-3">
+            <span class="font-mono text-xs bg-ink text-paper px-2 py-1">PHASE 0</span>
+            <span class="font-display font-bold text-xl">Nền móng</span>
+            <span class="font-mono text-xs text-mute ml-auto">3–4 ngày</span>
+          </div>
+          <p class="text-sm text-mute mb-3">Repo, CI, Terraform backend, package domain thuần với unit test đầy đủ cho state machine và fingerprint. Adapter in-memory để chạy local.</p>
+          <p class="text-sm"><span class="eyebrow text-mute">Xong khi</span> <span class="font-mono text-xs">go run ./cmd/server</span> nhận được webhook và in ra console.</p>
+        </div>
+
+        <div class="border-2 border-banana p-6 bg-banana/10">
+          <div class="flex flex-wrap items-baseline gap-x-4 mb-3">
+            <span class="font-mono text-xs bg-banana text-ink px-2 py-1">PHASE 1</span>
+            <span class="font-display font-bold text-xl">MVP</span>
+            <span class="font-mono text-xs text-mute ml-auto">2–3 tuần</span>
+          </div>
+          <p class="text-sm text-mute mb-4">Tuần 1: DynamoDB, ingest, processor, dedupe. Tuần 2: Step Functions, notifier, Telegram, ack. Tuần 3: sync lịch, CLI apply, Terraform prod, test end-to-end.</p>
+          <div class="eyebrow text-mute mb-2">Bảy điều kiện nghiệm thu</div>
+          <ol class="text-sm space-y-[6px]">
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute">1</span><span>Alertmanager thật trên RKE2 fire alert, nhận Telegram dưới 15 giây</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute">2</span><span>Mười alert cùng fingerprint chỉ ra một tin nhắn</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute">3</span><span>Không ack 5 phút, người thứ hai nhận được</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute">4</span><span>Bấm Ack, escalation dừng và tin nhắn được sửa</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute">5</span><span>Alertmanager gửi resolved, group tự đóng</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute">6</span><span>Sửa Google Calendar, 5 phút sau CLI trả về đúng người</span></li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-mute">7</span><span><span class="font-mono text-xs">terraform destroy</span> rồi <span class="font-mono text-xs">apply</span>, hệ thống chạy lại từ đầu</span></li>
+          </ol>
+        </div>
+
+        <div class="border border-rule p-6">
+          <div class="flex flex-wrap items-baseline gap-x-4 mb-3">
+            <span class="font-mono text-xs border border-rule px-2 py-1 text-mute">PHASE 2</span>
+            <span class="font-display font-bold text-xl">SLA và vận hành</span>
+            <span class="font-mono text-xs text-mute ml-auto">1–2 tuần</span>
+          </div>
+          <p class="text-sm text-mute">Metric đầy đủ, rollup SLA, hai Grafana board, dead-man switch, silence và maintenance window, Cognito với ba role, CLI hoàn chỉnh.</p>
+        </div>
+
+        <div class="border border-rule p-6">
+          <div class="flex flex-wrap items-baseline gap-x-4 mb-3">
+            <span class="font-mono text-xs border border-rule px-2 py-1 text-mute">PHASE 3</span>
+            <span class="font-display font-bold text-xl">iOS — chỉ khi Telegram không đủ</span>
+            <span class="font-mono text-xs text-mute ml-auto">2–3 tuần</span>
+          </div>
+          <p class="text-sm text-mute mb-3">SwiftUI, APNs, ack ngay từ notification, phân phối qua TestFlight.</p>
+          <div class="border-l-2 border-fire pl-4 text-sm">
+            <p>Muốn thông báo xuyên qua chế độ im lặng thì cần Critical Alerts entitlement — phải nộp đơn xin Apple duyệt thủ công và Apple từ chối khá nhiều. Phương án an toàn là Time Sensitive: tự bật được, xuyên qua Focus mode nhưng không xuyên qua nút gạt im lặng. Cộng thêm 99&nbsp;USD/năm tài khoản developer.</p>
+          </div>
+        </div>
+
+        <div class="border border-rule p-6">
+          <div class="flex flex-wrap items-baseline gap-x-4 mb-3">
+            <span class="font-mono text-xs border border-rule px-2 py-1 text-mute">PHASE 4</span>
+            <span class="font-display font-bold text-xl">Scale</span>
+          </div>
+          <p class="text-sm text-mute">Region thứ hai với Route 53 failover, thêm kênh Slack và email, web UI nếu thực sự cần, multi-tenant, inhibit rule.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RISKS -->
+    <section id="risks">
+      <div class="eyebrow text-mute mb-3">11 — Rủi ro</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-8">Cái gì có thể hỏng</h2>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th class="w-28">Mức độ</th><th>Rủi ro</th><th>Cách xử lý</th></tr></thead>
+          <tbody>
+            <tr class="bg-fire/[.07]"><td><span class="font-mono text-[.625rem] px-2 py-1 bg-fire text-paper">CRITICAL</span></td><td class="font-medium">BananaOnCall chết mà không ai biết</td><td>Dead-man switch bắt buộc ở phase 2. Canary chạy trên RKE2 — hạ tầng hoàn toàn độc lập — ping mỗi phút, im lặng quá 3 phút thì bot Telegram thứ hai báo trực tiếp.</td></tr>
+            <tr><td><span class="font-mono text-[.625rem] px-2 py-1 border border-fire text-fire">HIGH</span></td><td class="font-medium">Scope creep</td><td>Danh sách không-làm ở mục 03 là hợp đồng. Mọi thứ ngoài đó đẩy sang phase 2 trở đi.</td></tr>
+            <tr><td><span class="font-mono text-[.625rem] px-2 py-1 border border-fire text-fire">HIGH</span></td><td class="font-medium">Telegram bị chặn hoặc API sập</td><td>Provider interface đã trừu tượng sẵn. Phase 2 thêm email qua SES làm kênh dự phòng ở bước cuối.</td></tr>
+            <tr><td><span class="font-mono text-[.625rem] px-2 py-1 border border-fire text-fire">HIGH</span></td><td class="font-medium">AWS region outage</td><td>Chấp nhận ở MVP, ghi rõ trong SLA. Phase 4 làm region thứ hai.</td></tr>
+            <tr><td><span class="font-mono text-[.625rem] px-2 py-1 border border-rule text-mute">MEDIUM</span></td><td class="font-medium">Sync Google Calendar lỗi</td><td>Không xoá shift cũ khi fetch thất bại. Có default target. Fail ba lần liên tiếp thì báo admin.</td></tr>
+            <tr><td><span class="font-mono text-[.625rem] px-2 py-1 border border-rule text-mute">MEDIUM</span></td><td class="font-medium">Alert storm nghìn alert một phút</td><td>SQS làm bộ đệm, Lambda reserved concurrency, grouping cắt phần lớn. Phase 2 thêm rate limit theo integration.</td></tr>
+            <tr><td><span class="font-mono text-[.625rem] px-2 py-1 border border-rule text-mute">MEDIUM</span></td><td class="font-medium">Execution history của Step Functions đầy</td><td>Giới hạn repeat 50 lần rồi kết thúc và báo admin.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ASK -->
+    <section id="ask">
+      <div class="eyebrow text-mute mb-3">12 — Cần bạn chốt</div>
+      <h2 class="font-display font-bold text-4xl tracking-[-0.02em] mb-3">Mười câu hỏi chặn</h2>
+      <p class="text-mute max-w-2xl mb-8">Ba câu đầu chặn nhiều nhất — trả lời được ba câu đó là bắt đầu code phase 0 được.</p>
+      <ol class="border-t border-ink">
+        <li class="border-b border-rule py-4 flex gap-4 items-start bg-banana/10 px-4 -mx-4"><input type="checkbox" class="ask mt-1 w-4 h-4 accent-banana shrink-0"><div><span class="font-mono text-xs text-mute mr-2">Q1</span>Step Functions hay cron sweeper? Chọn sweeper nếu bạn ưu tiên tối đa khả năng port sang RKE2.</div></li>
+        <li class="border-b border-rule py-4 flex gap-4 items-start bg-banana/10 px-4 -mx-4"><input type="checkbox" class="ask mt-1 w-4 h-4 accent-banana shrink-0"><div><span class="font-mono text-xs text-mute mr-2">Q2</span>Hiện có bao nhiêu người trong rotation? Có primary và secondary hay chỉ một tầng?</div></li>
+        <li class="border-b border-rule py-4 flex gap-4 items-start bg-banana/10 px-4 -mx-4"><input type="checkbox" class="ask mt-1 w-4 h-4 accent-banana shrink-0"><div><span class="font-mono text-xs text-mute mr-2">Q3</span>Board công khai report uptime của BananaOnCall, của các service nó giám sát, hay cả hai?</div></li>
+        <li class="border-b border-rule py-4 flex gap-4 items-start"><input type="checkbox" class="ask mt-1 w-4 h-4 accent-banana shrink-0"><div><span class="font-mono text-xs text-mute mr-2">Q4</span>Domain cho endpoint?</div></li>
+        <li class="border-b border-rule py-4 flex gap-4 items-start"><input type="checkbox" class="ask mt-1 w-4 h-4 accent-banana shrink-0"><div><span class="font-mono text-xs text-mute mr-2">Q5</span>Region <span class="font-mono text-xs">ap-southeast-1</span> Singapore — xác nhận?</div></li>
+        <li class="border-b border-rule py-4 flex gap-4 items-start"><input type="checkbox" class="ask mt-1 w-4 h-4 accent-banana shrink-0"><div><span class="font-mono text-xs text-mute mr-2">Q6</span>Dùng AWS account có sẵn hay tạo account riêng cho project?</div></li>
+        <li class="border-b border-rule py-4 flex gap-4 items-start"><input type="checkbox" class="ask mt-1 w-4 h-4 accent-banana shrink-0"><div><span class="font-mono text-xs text-mute mr-2">Q7</span>Nhịp escalation 5 phút, 5 phút, war room, lặp 10 phút — hợp với team bạn chưa?</div></li>
+        <li class="border-b border-rule py-4 flex gap-4 items-start"><input type="checkbox" class="ask mt-1 w-4 h-4 accent-banana shrink-0"><div><span class="font-mono text-xs text-mute mr-2">Q8</span>Quy ước Google Calendar: tiêu đề <span class="font-mono text-xs">oncall: tên</span> hay dùng email người tham dự?</div></li>
+        <li class="border-b border-rule py-4 flex gap-4 items-start"><input type="checkbox" class="ask mt-1 w-4 h-4 accent-banana shrink-0"><div><span class="font-mono text-xs text-mute mr-2">Q9</span>Public repo ngay hay private trước? Ảnh hưởng tới cách quản lý secret.</div></li>
+        <li class="border-b border-rule py-4 flex gap-4 items-start"><input type="checkbox" class="ask mt-1 w-4 h-4 accent-banana shrink-0"><div><span class="font-mono text-xs text-mute mr-2">Q10</span>Có cần đẩy alert vào Elastic hoặc Kafka sẵn có để lưu trữ dài hạn không?</div></li>
+      </ol>
+    </section>
+
+  </main>
+</div>
+
+<footer class="border-t border-ink mt-12">
+  <div class="max-w-[1180px] mx-auto px-6 lg:px-10 py-10 flex flex-wrap gap-x-8 gap-y-3 items-baseline">
+    <span class="font-display font-bold text-xl">BananaOnCall</span>
+    <span class="font-mono text-xs text-mute">Design doc v0.1 · 2026-08-22 · trạng thái: chờ duyệt</span>
+    <span class="font-mono text-xs text-mute ml-auto">Apache-2.0</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // scroll-spy
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a'));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute('href').slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove('on'); });
+        if(map[e.target.id]) map[e.target.id].classList.add('on');
+      }
+    });
+  }, { rootMargin: '-15% 0px -70% 0px' });
+  document.querySelectorAll('main section[id]').forEach(function(s){ obs.observe(s); });
+
+  // review counter (in-memory only)
+  var boxes = document.querySelectorAll('.dec, .ask');
+  var cnt = document.getElementById('cnt');
+  boxes.forEach(function(b){
+    b.addEventListener('change', function(){
+      var n = 0;
+      boxes.forEach(function(x){ if(x.checked) n++; });
+      cnt.textContent = n;
+    });
+  });
+})();
+</script>
+</body>
+</html>

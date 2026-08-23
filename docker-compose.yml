@@ -1,0 +1,30 @@
+name: bananaoncall
+
+services:
+  localstack:
+    # Community image. The newer CalVer tags (2026.xx) are the Pro build
+    # and refuse to start without a LOCALSTACK_AUTH_TOKEN.
+    image: localstack/localstack:4.14.0
+    container_name: localstack
+    ports:
+      # Edge port: every AWS API is served here. Matches the endpoint_url
+      # in the [profile localstack] entry of ~/.aws/config.
+      - "127.0.0.1:4566:4566"
+      # External service ports (e.g. opensearch, rds proxies).
+      - "127.0.0.1:4510-4559:4510-4559"
+    environment:
+      DEBUG: ${DEBUG:-0}
+      # LocalStack starts Lambda/ECS containers on the host daemon.
+      DOCKER_HOST: unix:///var/run/docker.sock
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  localstack-data:

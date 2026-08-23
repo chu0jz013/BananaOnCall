@@ -1,0 +1,29 @@
+{
+  "name": "cdk",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk",
+    "cdklocal": "AWS_PROFILE=localstack cdklocal",
+    "local:bootstrap": "AWS_PROFILE=localstack cdklocal bootstrap",
+    "local:deploy": "AWS_PROFILE=localstack cdklocal deploy",
+    "local:destroy": "AWS_PROFILE=localstack cdklocal destroy"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.15.0",
+    "@swc/jest": "^0.2.39",
+    "@types/jest": "^30",
+    "@types/node": "^24.10.1",
+    "aws-cdk": "2.1138.0",
+    "aws-cdk-local": "^3.0.4",
+    "jest": "^30",
+    "tsx": "^4.23.0",
+    "typescript": "~7.0.2"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.265.0",
+    "constructs": "^10.5.0"
+  }
+}

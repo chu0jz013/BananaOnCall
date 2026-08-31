@@ -3,6 +3,7 @@ import { EscalationClock } from '../components/EscalationClock';
 import { StateChips } from '../components/Chips';
 import { DataTable } from '../components/DataTable';
 import { Callout } from '../components/Callout';
+import { Hero } from '../components/Hero';
 
 const A = ({ href, children }: { href: string; children: string }) => (
   <a href={href} className="underline decoration-banana decoration-2 underline-offset-2">
@@ -12,6 +13,20 @@ const A = ({ href, children }: { href: string; children: string }) => (
 
 export const overview: Translated<DocPage> = {
   vi: {
+    hero: (
+      <Hero
+        l={{
+          headline: 'Không ai phải trả tiền theo đầu người chỉ để bị gọi dậy lúc 3 giờ sáng.',
+          quickstart: 'Bắt đầu nhanh',
+          source: 'Mã nguồn',
+          stats: [
+            { value: '~8 USD', label: 'mỗi tháng, ở prod' },
+            { value: '99,9%', label: 'mục tiêu SLO' },
+            { value: '35s', label: 'dựng xong stack local' },
+          ],
+        }}
+      />
+    ),
     title: 'Tổng quan',
     lede: 'BananaOnCall nhận alert từ Alertmanager, gom nhóm và khử trùng lặp, tìm đúng người đang trực trên Google Calendar, bắn Telegram kèm nút Ack — và tự leo thang khi không ai trả lời.',
     sections: [
@@ -57,11 +72,23 @@ export const overview: Translated<DocPage> = {
               đóng gói nào:
             </p>
             <DataTable
-              head={['Ràng buộc', 'Vì sao quan trọng']}
+              head={['Chúng ta cần', 'Đồ có sẵn', 'BananaOnCall']}
               rows={[
-                [<>Khoảng <strong>8&nbsp;USD/tháng</strong></>, 'Serverless, trả theo dùng. Không có gì phải trả khi hệ thống đang rảnh.'],
-                ['Telegram là kênh chính', 'Team đã ở sẵn trên Telegram. Không cần thêm một app nữa để cài và quên mất.'],
-                ['Lịch trực nằm trên Google Calendar', 'Nguồn sự thật đã có sẵn và ai cũng biết sửa. Không phải học một UI xếp ca mới.'],
+                [
+                  'Chi phí đoán trước được, không tính theo đầu người',
+                  'PagerDuty ~105–210 USD/tháng cho 5 người; Grafana Cloud IRM ~100 USD',
+                  <strong>~8 USD/tháng, tăng theo lượng alert chứ không theo số người</strong>,
+                ],
+                [
+                  'Kênh mà team đã ở sẵn',
+                  'Grafana OnCall OSS archive 24-03-2026; SMS, cuộc gọi và push chết cùng Cloud Connection',
+                  <strong>Bot Telegram với nút Ack ngay trong tin nhắn</strong>,
+                ],
+                [
+                  'Lịch trực đã có, ai cũng sửa được',
+                  'Một UI xếp ca mới phải học và phải duy trì',
+                  <strong>Google Calendar qua secret iCal URL, poll 5 phút</strong>,
+                ],
               ]}
             />
           </>
@@ -103,6 +130,20 @@ export const overview: Translated<DocPage> = {
   },
 
   en: {
+    hero: (
+      <Hero
+        l={{
+          headline: 'Nobody should pay per seat to get woken up at 3am.',
+          quickstart: 'Quickstart',
+          source: 'Source',
+          stats: [
+            { value: '~8 USD', label: 'per month, in prod' },
+            { value: '99.9%', label: 'SLO target' },
+            { value: '35s', label: 'to a local stack' },
+          ],
+        }}
+      />
+    ),
     title: 'Overview',
     lede: 'BananaOnCall takes alerts from Alertmanager, groups and deduplicates them, finds whoever is on call from Google Calendar, sends a Telegram message with an Ack button — and escalates when nobody answers.',
     sections: [
@@ -148,11 +189,23 @@ export const overview: Translated<DocPage> = {
               Beyond that, our other three constraints do not match any packaged product either:
             </p>
             <DataTable
-              head={['Constraint', 'Why it matters']}
+              head={['What we need', 'Off the shelf', 'BananaOnCall']}
               rows={[
-                [<>About <strong>8&nbsp;USD/month</strong></>, 'Serverless, pay per use. Nothing to pay while the system is idle.'],
-                ['Telegram is the channel', 'The team already lives there. No extra app to install and then forget about.'],
-                ['The roster lives in Google Calendar', 'The source of truth already exists and everyone can already edit it. No new shift-planning UI to learn.'],
+                [
+                  'Predictable cost, not per seat',
+                  'PagerDuty ~105–210 USD/month for 5; Grafana Cloud IRM ~100 USD',
+                  <strong>~8 USD/month, growing with alert volume rather than headcount</strong>,
+                ],
+                [
+                  'The channel the team is already in',
+                  'Grafana OnCall OSS archived 24 Mar 2026; SMS, phone and push died with Cloud Connection',
+                  <strong>A Telegram bot with an Ack button right in the message</strong>,
+                ],
+                [
+                  'The roster we already keep',
+                  'A new shift-planning UI to learn and maintain',
+                  <strong>Google Calendar over a secret iCal URL, polled every 5 minutes</strong>,
+                ],
               ]}
             />
           </>

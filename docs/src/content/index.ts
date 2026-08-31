@@ -2,6 +2,7 @@ import type { DocPage, Translated } from '../i18n/types';
 import { overview } from './overview';
 import { quickstart } from './quickstart';
 import { architecture } from './architecture';
+import { demo } from './demo';
 import { localdev } from './localdev';
 import { reference } from './reference';
 import { testing } from './testing';
@@ -23,6 +24,7 @@ export const routes: readonly DocRoute[] = [
   { path: '/', content: overview },
   { path: '/quickstart', content: quickstart },
   { path: '/architecture', content: architecture },
+  { path: '/demo', content: demo },
   { path: '/local-development', content: localdev },
   { path: '/reference', content: reference },
   { path: '/testing', content: testing },

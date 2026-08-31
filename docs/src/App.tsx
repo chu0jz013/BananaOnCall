@@ -1,24 +1,23 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router';
+import { BrowserRouter, Link, useLocation } from 'react-router';
 import { Layout } from './components/Layout';
 import { DocPageView } from './components/DocPageView';
 import { routes } from './content';
+import { EnvProvider } from './env';
 import { LangProvider, useLang } from './i18n/lang';
 import { ui } from './i18n/ui';
-import type { DocPage, Translated } from './i18n/types';
+
+/** `/reference/` and `/reference` are the same page. */
+function normalize(pathname: string): string {
+  return pathname !== '/' && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+}
 
 /** A deep link lands mid-document otherwise, because the shell never unmounts. */
-function ScrollToTop() {
-  const { pathname, hash } = useLocation();
+function useScrollReset(pathname: string) {
+  const { hash } = useLocation();
   useEffect(() => {
     if (!hash) window.scrollTo(0, 0);
   }, [pathname, hash]);
-  return null;
-}
-
-function Page({ content }: { content: Translated<DocPage> }) {
-  const { lang } = useLang();
-  return <DocPageView page={content[lang]} tocLabel={ui[lang].onThisPage} />;
 }
 
 function NotFound() {
@@ -38,20 +37,34 @@ function NotFound() {
   );
 }
 
+/**
+ * Routing is a flat static table, so it is resolved directly rather than
+ * through <Routes> — which also lets the Layout render the page's hero
+ * full-bleed above the sidebar, where the wireframe puts it.
+ */
+function Shell() {
+  const { pathname } = useLocation();
+  const { lang } = useLang();
+  useScrollReset(pathname);
+
+  const route = routes.find((r) => r.path === normalize(pathname));
+  const page = route?.content[lang];
+
+  return (
+    <Layout hero={page?.hero}>
+      {page ? <DocPageView page={page} tocLabel={ui[lang].onThisPage} /> : <NotFound />}
+    </Layout>
+  );
+}
+
 export function App() {
   return (
     <LangProvider>
-      <BrowserRouter>
-        <ScrollToTop />
-        <Layout>
-          <Routes>
-            {routes.map((r) => (
-              <Route key={r.path} path={r.path} element={<Page content={r.content} />} />
-            ))}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
-      </BrowserRouter>
+      <EnvProvider>
+        <BrowserRouter>
+          <Shell />
+        </BrowserRouter>
+      </EnvProvider>
     </LangProvider>
   );
 }

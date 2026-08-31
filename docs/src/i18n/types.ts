@@ -21,6 +21,12 @@ export interface DocPage {
   readonly title: string;
   readonly lede: string;
   readonly sections: readonly DocSection[];
+  /** Full-bleed band above the docs grid. Overview only. */
+  readonly hero?: ReactNode;
+  /** Drop the contents rail and use the whole column — for the demo. */
+  readonly wide?: boolean;
+  /** Pinned under the contents rail — the cost card on Deployment. */
+  readonly rail?: ReactNode;
 }
 
 /**

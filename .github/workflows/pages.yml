@@ -44,6 +44,9 @@ jobs:
 
       - run: npm ci
 
+      # The demo's escalation engine is real logic; a broken one must not ship.
+      - run: npm test
+
       # Type-checks, builds, and copies index.html to 404.html so GitHub Pages
       # can answer a deep link with something the router can resolve.
       - run: npm run build

@@ -1,194 +1,230 @@
-import type { DocPage, Translated } from '../i18n/types';
+import type { ReactNode } from 'react';
+import type { DocPage, Lang, Translated } from '../i18n/types';
 import { CodeBlock } from '../components/CodeBlock';
 import { DataTable } from '../components/DataTable';
 import { Callout } from '../components/Callout';
+import { Steps } from '../components/Steps';
+import { Tabs } from '../components/Tabs';
+import { ENVS, useEnv, type Env } from '../env';
 
-const cdkCmds = `
-make synth      # print the synthesized template
-make deploy     # deploy into LocalStack, then repair the stage if needed
-make destroy    # remove the stack again
+const envLabels: Record<Lang, Record<Env, string>> = {
+  vi: { local: 'LocalStack', aws: 'AWS thật', docs: 'Trang docs' },
+  en: { local: 'LocalStack', aws: 'Real AWS', docs: 'Docs site' },
+};
 
-npx cdk deploy -c env=prod     # real AWS, once the gaps below are closed
-`;
+const chips = (xs: readonly string[]) => (
+  <div className="flex flex-wrap gap-2">
+    {xs.map((x) => (
+      <span key={x} className="border border-line px-2 py-1 font-mono text-[.6875rem] text-soft">
+        {x}
+      </span>
+    ))}
+  </div>
+);
 
-const stack = (head: readonly string[]) => (
+const services = (t: boolean) => (
   <DataTable
-    head={head}
+    head={[t ? 'Service' : 'Service', 'Port', t ? 'Đóng vai' : 'Stands in for']}
     rows={[
-      ['DynamoDB', <>one table, <code>GSI1</code>, TTL, pay-per-request</>],
-      ['SQS', <>a FIFO queue and its DLQ (<code>maxReceiveCount</code> 3)</>],
-      ['Lambda', <><code>ingest</code> and <code>status</code>, Go on <code>PROVIDED_AL2023</code>, arm64</>],
-      ['API Gateway', 'a REST API, stage prod, throttled, with access logs'],
-      ['S3', 'a public website bucket for the status board'],
-      ['CloudWatch Logs', 'one group per function, one week retention'],
+      [<code>localstack</code>, <code>4566</code>, 'AWS'],
+      [<code>mock-telegram</code>, <code>8081</code>, 'api.telegram.org'],
+      [<code>ical</code>, <code>8082</code>, t ? 'URL iCal của Google Calendar' : 'the Google Calendar iCal URL'],
+      [<code>alertmanager</code>, <code>9093</code>, t ? 'Alertmanager thật trên RKE2' : 'the real Alertmanager on RKE2'],
     ]}
   />
+);
+
+/** Each environment is the same three beats; only the commands differ. */
+function steps(env: Env, t: boolean) {
+  if (env === 'local') {
+    return [
+      {
+        title: t ? 'Chuẩn bị' : 'Prerequisites',
+        body: chips(['Docker', 'Go 1.27', 'Node + npm', 'AWS CLI · profile localstack']),
+      },
+      {
+        title: t ? 'Dựng stack' : 'Bring the stack up',
+        body: <CodeBlock>{'make all\n#  up · bootstrap · deploy · seed · web-deploy'}</CodeBlock>,
+        expected: t ? 'một status board xem được, khoảng 35 giây' : 'a browsable status board in about 35 seconds',
+      },
+      {
+        title: t ? 'Kiểm lại' : 'Check it',
+        body: (
+          <>
+            {services(t)}
+            <Callout tone="danger" title={t ? 'Khi một thay đổi không ăn' : "When a change won't take"}>
+              <p>
+                {t
+                  ? 'LocalStack áp dụng update lên API Gateway rất hay hỏng, và hỏng im lặng. '
+                  : 'LocalStack applies updates to API Gateway unreliably, and fails silently. '}
+                <code>make down &amp;&amp; make all</code>
+                {t ? ' thay vì ngồi debug code của chính mình.' : ' rather than debugging your own code.'}
+              </p>
+            </Callout>
+          </>
+        ),
+      },
+    ];
+  }
+
+  if (env === 'aws') {
+    return [
+      {
+        title: t ? 'Chuẩn bị' : 'Prerequisites',
+        body: chips([
+          t ? 'Tài khoản AWS' : 'An AWS account',
+          t ? 'Credential có quyền deploy' : 'Credentials that can deploy',
+          'cdk bootstrap',
+          'ap-southeast-1',
+        ]),
+      },
+      {
+        title: t ? 'Deploy' : 'Deploy',
+        body: <CodeBlock>{'make build\nnpx cdk deploy -c env=prod'}</CodeBlock>,
+        expected: t
+          ? 'CloudFormation xong, và ApiUrl · TableName · SiteUrl nằm trong outputs'
+          : 'CloudFormation completes, and ApiUrl · TableName · SiteUrl appear in the outputs',
+      },
+      {
+        title: t ? 'Bốn chỗ phải chốt trước' : 'Four things to settle first',
+        body: (
+          <>
+            <DataTable
+              head={[t ? 'Việc' : 'Item', t ? 'Trạng thái' : 'State']}
+              rows={[
+                [t ? 'Integration key' : 'Integration keys', <><code>integrationKeys</code> {t ? 'ở prod đang rỗng — phải đọc từ Secrets Manager' : 'is empty in prod — must read from Secrets Manager'}</>],
+                [t ? 'Domain' : 'Domain', <><code>siteOrigin</code> {t ? 'chưa đặt; câu hỏi Q4 vẫn treo' : 'is unset; design doc Q4 is still open'}</>],
+                [t ? 'TLS cho board' : 'TLS for the board', t ? 'S3 website chỉ có HTTP — cần CloudFront phía trước' : 'S3 website endpoints are HTTP-only — it wants CloudFront in front'],
+                [t ? 'Xác thực' : 'Authentication', t ? 'Cognito quay lại ở Phase 2; hiện key nằm trong path' : 'Cognito returns in Phase 2; today the key is in the path'],
+              ]}
+            />
+            <Callout tone="danger" title={t ? 'Chưa deploy lên AWS thật lần nào' : 'Never deployed to real AWS'}>
+              <p>
+                {t
+                  ? 'Nhánh prod của config đã tồn tại nhưng chưa được chạy.'
+                  : 'The prod branch of the config exists but has not been exercised.'}
+              </p>
+            </Callout>
+          </>
+        ),
+      },
+    ];
+  }
+
+  return [
+    {
+      title: t ? 'Chuẩn bị' : 'Prerequisites',
+      body: (
+        <>
+          {chips([t ? 'Quyền ghi vào repo' : 'Write access to the repo', 'Settings → Pages'])}
+          <p className="mt-3 text-sm text-soft">
+            {t ? 'Nguồn của Pages phải là ' : 'The Pages source must be '}
+            <strong>GitHub Actions</strong>
+            {t
+              ? ', không phải "Deploy from a branch" — nếu không, builder cũ sẽ publish thẳng thư mục docs/ chưa build và trang ra trắng xoá.'
+              : ', not "Deploy from a branch" — otherwise the legacy builder publishes the raw, unbuilt docs/ folder and the page renders blank.'}
+          </p>
+        </>
+      ),
+    },
+    {
+      title: t ? 'Đẩy lên' : 'Ship it',
+      body: <CodeBlock>{'git push        # any push to master\n# or: Actions → Pages → Run workflow'}</CodeBlock>,
+      expected: t
+        ? 'workflow Pages xanh, rồi oncall.quachuoitrenmay.com phục vụ bản mới'
+        : 'the Pages workflow goes green, then oncall.quachuoitrenmay.com serves the new build',
+    },
+    {
+      title: t ? 'Workflow tự kiểm gì' : 'What the workflow verifies',
+      body: (
+        <>
+          <p className="text-soft">
+            {t
+              ? 'Build fail thay vì đẩy ra một trang trắng — đúng ba thứ đã từng thiếu:'
+              : 'The build fails rather than shipping a blank page — exactly the three things that were once missing:'}
+          </p>
+          <CodeBlock title=".github/workflows/pages.yml">{`
+dist/index.html · 404.html · CNAME · design-doc-v0.1.html   exist and are non-empty
+dist/assets/*.js                                            a JS bundle was emitted
+dist/index.html                                             is NOT the unbuilt Vite entry
+`}</CodeBlock>
+        </>
+      ),
+    },
+  ];
+}
+
+function EnvSteps({ lang }: { lang: Lang }) {
+  const { env, setEnv } = useEnv();
+  const t = lang === 'vi';
+  return (
+    <>
+      <Tabs
+        label={t ? 'Môi trường' : 'Environment'}
+        active={env}
+        onChange={(id) => setEnv(id as Env)}
+        tabs={ENVS.map((e) => ({ id: e, label: envLabels[lang][e] }))}
+      />
+      <p className="-mt-2 mb-6 font-mono text-[.6875rem] text-soft">
+        ↑ {t ? 'một cái switch viết lại mọi câu lệnh bên dưới' : 'one switch rewrites every command below'}
+      </p>
+      <Steps steps={steps(env, t)} expectedLabel={t ? 'Kỳ vọng' : 'Expected'} />
+    </>
+  );
+}
+
+const costRail = (t: boolean): ReactNode => (
+  <div className="border border-line bg-surface p-4">
+    <div className="eyebrow text-soft">{t ? 'Chi phí vận hành' : 'Running cost'}</div>
+    <div className="font-display mt-2 text-3xl font-bold tracking-[-0.02em]">~8 USD</div>
+    <div className="mt-1 font-mono text-[.6875rem] text-soft">
+      {t ? 'mỗi tháng, ở prod' : 'per month, in prod'}
+    </div>
+    <p className="mt-3 border-t border-line pt-3 text-[.8125rem] leading-relaxed text-soft">
+      {t
+        ? 'CloudWatch Metrics là khoản lớn nhất (4,50). Remote-write thẳng vào Prometheus on-prem cắt hơn nửa hoá đơn.'
+        : 'CloudWatch Metrics is the biggest line (4.50). Remote-writing to the on-prem Prometheus cuts more than half the bill.'}
+    </p>
+  </div>
+);
+
+const cdkSection = (t: boolean) => (
+  <>
+    <p className="text-soft">
+      {t
+        ? 'Hạ tầng là CDK TypeScript, không phải Terraform — chỗ thứ tư bản build đi chệch thiết kế. Handler vẫn là Go theo D10.'
+        : 'Infrastructure is CDK TypeScript, not Terraform — the fourth place the build deviated from the design. The handlers stay Go, per D10.'}
+    </p>
+    <DataTable
+      head={[t ? 'Tài nguyên' : 'Resource', t ? 'Cái gì được tạo' : 'What gets created']}
+      rows={[
+        ['DynamoDB', <>{t ? 'một bảng, ' : 'one table, '}<code>GSI1</code>, TTL, pay-per-request</>],
+        ['SQS', <>{t ? 'queue FIFO và DLQ (' : 'a FIFO queue and its DLQ ('}<code>maxReceiveCount</code> 3)</>],
+        ['Lambda', <><code>ingest</code>{t ? ' và ' : ' and '}<code>status</code>, Go · <code>PROVIDED_AL2023</code> · arm64</>],
+        ['API Gateway', t ? 'REST API, stage prod, có throttle và access log' : 'a REST API, stage prod, throttled, with access logs'],
+        ['S3', t ? 'bucket website công khai cho status board' : 'a public website bucket for the status board'],
+      ]}
+    />
+  </>
 );
 
 export const deployment: Translated<DocPage> = {
   vi: {
     title: 'Triển khai',
-    lede: 'Một stack CDK TypeScript, hai môi trường, và một danh sách ngắn những thứ còn phải chốt trước khi đụng vào AWS thật.',
+    lede: 'Một stack CDK, ba thứ có thể deploy, và một cái switch viết lại mọi câu lệnh trên trang.',
+    rail: costRail(true),
     sections: [
-      {
-        id: 'cdk',
-        heading: 'Stack CDK',
-        body: (
-          <>
-            <p className="text-soft">
-              Hạ tầng là CDK TypeScript, không phải Terraform — đây là chỗ thứ tư bản build đi
-              chệch thiết kế. Handler vẫn là Go theo đúng D10.
-            </p>
-            <CodeBlock>{cdkCmds}</CodeBlock>
-            <p className="text-soft">
-              <code>make build</code> cross-compile <code>cmd/&lt;fn&gt;</code> thành{' '}
-              <code>dist/&lt;fn&gt;/bootstrap</code> cho <code>linux/arm64</code>, nên không có
-              bước bundling bằng Docker và không có construct alpha nào trong cây phụ thuộc.
-              arm64 khớp cả máy Apple Silicon lẫn Graviton ở prod.
-            </p>
-            {stack(['Tài nguyên', 'Cái gì được tạo'])}
-          </>
-        ),
-      },
-      {
-        id: 'prod',
-        heading: 'Còn thiếu gì trước khi lên prod',
-        body: (
-          <>
-            <Callout tone="danger" title="Chưa deploy lên AWS thật lần nào">
-              <p>
-                Nhánh <code>prod</code> của config đã tồn tại nhưng chưa được chạy. Bốn chỗ dưới
-                đây phải chốt trước.
-              </p>
-            </Callout>
-            <DataTable
-              head={['Việc', 'Trạng thái']}
-              rows={[
-                [<>Integration key</>, <><code>integrationKeys</code> ở prod đang rỗng — phải đọc từ Secrets Manager</>],
-                [<>Domain</>, <><code>siteOrigin</code> chưa đặt; câu hỏi Q4 của design doc vẫn treo</>],
-                [<>TLS cho board</>, 'S3 website endpoint chỉ có HTTP. Cần CloudFront phía trước trước khi gắn domain thật.'],
-                [<>Xác thực</>, 'Cognito quay lại như một bước hoán đổi ở Phase 2; hiện tại key nằm trong path'],
-              ]}
-            />
-          </>
-        ),
-      },
-      {
-        id: 'docs',
-        heading: 'Trang tài liệu này deploy thế nào',
-        body: (
-          <>
-            <p className="text-soft">
-              Chính trang bạn đang đọc là một app Vite + React + TypeScript + Tailwind nằm trong{' '}
-              <code>docs/</code>, và được GitHub Actions build rồi đẩy lên GitHub Pages. Không có
-              file build nào được commit.
-            </p>
-            <CodeBlock title=".github/workflows/pages.yml">{`
-push (master, docs/**)  →  npm ci  →  npm run build  →  upload-pages-artifact
-                                                     →  deploy-pages
-`}</CodeBlock>
-            <DataTable
-              head={['Chi tiết', 'Cách xử lý']}
-              rows={[
-                ['Custom domain', <><code>docs/public/CNAME</code> được Vite chép vào <code>dist/</code> mỗi lần build</>],
-                ['Deep link', <>GitHub Pages không có rewrite, nên bước build chép <code>index.html</code> thành <code>404.html</code></>],
-                ['Design doc cũ', <>giữ nguyên ở <code>/design-doc-v0.1.html</code></>],
-                [<code>base</code>, <>là <code>&apos;/&apos;</code> vì custom domain phục vụ ở gốc</>],
-              ]}
-            />
-            <Callout tone="warn" title="Một bước phải làm bằng tay">
-              <p>
-                Trong <strong>Settings → Pages</strong>, nguồn phải được chuyển từ{' '}
-                <em>Deploy from a branch</em> sang <strong>GitHub Actions</strong>. Chưa chuyển
-                thì workflow vẫn chạy xanh nhưng trang thật vẫn là thư mục <code>/docs</code> cũ.
-              </p>
-            </Callout>
-          </>
-        ),
-      },
+      { id: 'run', heading: 'Chọn môi trường rồi làm theo', body: <EnvSteps lang="vi" /> },
+      { id: 'cdk', heading: 'Stack CDK', body: cdkSection(true) },
     ],
   },
-
   en: {
     title: 'Deployment',
-    lede: 'One CDK TypeScript stack, two environments, and a short list of things still to settle before this touches real AWS.',
+    lede: 'One CDK stack, three things you might be deploying, and a switch that rewrites every command on the page.',
+    rail: costRail(false),
     sections: [
-      {
-        id: 'cdk',
-        heading: 'The CDK stack',
-        body: (
-          <>
-            <p className="text-soft">
-              Infrastructure is CDK TypeScript, not Terraform — the fourth place the build
-              deviated from the design. The handlers stay Go, per D10.
-            </p>
-            <CodeBlock>{cdkCmds}</CodeBlock>
-            <p className="text-soft">
-              <code>make build</code> cross-compiles <code>cmd/&lt;fn&gt;</code> to{' '}
-              <code>dist/&lt;fn&gt;/bootstrap</code> for <code>linux/arm64</code>, so there is no
-              Docker bundling step and no alpha construct in the dependency tree. arm64 matches
-              both the Apple Silicon host and Graviton in prod.
-            </p>
-            {stack(['Resource', 'What gets created'])}
-          </>
-        ),
-      },
-      {
-        id: 'prod',
-        heading: 'What is missing before prod',
-        body: (
-          <>
-            <Callout tone="danger" title="This has never been deployed to real AWS">
-              <p>
-                The <code>prod</code> branch of the config exists but has not been exercised. The
-                four items below have to be settled first.
-              </p>
-            </Callout>
-            <DataTable
-              head={['Item', 'State']}
-              rows={[
-                [<>Integration keys</>, <><code>integrationKeys</code> is empty in prod — it must read from Secrets Manager</>],
-                [<>Domain</>, <><code>siteOrigin</code> is unset; design doc question Q4 is still open</>],
-                [<>TLS for the board</>, 'S3 website endpoints are HTTP-only. It wants CloudFront in front before it fronts a real domain.'],
-                [<>Authentication</>, 'Cognito returns as a Phase 2 swap; today the key is in the path'],
-              ]}
-            />
-          </>
-        ),
-      },
-      {
-        id: 'docs',
-        heading: 'How this documentation site ships',
-        body: (
-          <>
-            <p className="text-soft">
-              The page you are reading is itself a Vite + React + TypeScript + Tailwind app living
-              in <code>docs/</code>, built and pushed to GitHub Pages by GitHub Actions. No build
-              output is ever committed.
-            </p>
-            <CodeBlock title=".github/workflows/pages.yml">{`
-push (master, docs/**)  →  npm ci  →  npm run build  →  upload-pages-artifact
-                                                     →  deploy-pages
-`}</CodeBlock>
-            <DataTable
-              head={['Detail', 'How it is handled']}
-              rows={[
-                ['Custom domain', <><code>docs/public/CNAME</code> is copied into <code>dist/</code> by Vite on every build</>],
-                ['Deep links', <>GitHub Pages has no rewrite rule, so the build copies <code>index.html</code> to <code>404.html</code></>],
-                ['The old design doc', <>kept verbatim at <code>/design-doc-v0.1.html</code></>],
-                [<code>base</code>, <>is <code>&apos;/&apos;</code> because the custom domain serves at the root</>],
-              ]}
-            />
-            <Callout tone="warn" title="One step that has to be done by hand">
-              <p>
-                Under <strong>Settings → Pages</strong>, the source must be switched from{' '}
-                <em>Deploy from a branch</em> to <strong>GitHub Actions</strong>. Until it is, the
-                workflow runs green but the live site is still the old <code>/docs</code> folder.
-              </p>
-            </Callout>
-          </>
-        ),
-      },
+      { id: 'run', heading: 'Pick an environment and follow along', body: <EnvSteps lang="en" /> },
+      { id: 'cdk', heading: 'The CDK stack', body: cdkSection(false) },
     ],
   },
 };

@@ -34,7 +34,7 @@ export function Toc({ label, sections }: Props) {
   }, [sections]);
 
   return (
-    <nav aria-label={label} className="sticky top-24">
+    <nav aria-label={label}>
       <div className="eyebrow mb-3 text-soft">{label}</div>
       <ul className="space-y-1">
         {sections.map((s) => (

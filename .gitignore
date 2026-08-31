@@ -21,3 +21,6 @@ docs/dist
 
 # Incremental tsc state
 *.tsbuildinfo
+
+# esbuild output for the demo-engine test
+docs/src/demo/engine.built.mjs

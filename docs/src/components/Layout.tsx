@@ -6,7 +6,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { useLang } from '../i18n/lang';
 import { ui } from '../i18n/ui';
 
-export function Layout({ children }: { children: ReactNode }) {
+export function Layout({ children, hero }: { children: ReactNode; hero?: ReactNode }) {
   const { lang } = useLang();
   const t = ui[lang];
   const [open, setOpen] = useState(false);
@@ -41,6 +41,8 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
       </header>
+
+      {hero}
 
       <div className="mx-auto flex max-w-[1400px] gap-12 px-6 lg:px-10">
         <div className="hidden w-56 shrink-0 py-14 lg:block">

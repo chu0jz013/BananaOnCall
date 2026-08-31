@@ -3,6 +3,8 @@ import { CodeBlock } from '../components/CodeBlock';
 import { DataTable } from '../components/DataTable';
 import { Callout } from '../components/Callout';
 import { FlowDiagram, type FlowLabels } from '../components/FlowDiagram';
+import { PortsDiagram } from '../components/PortsDiagram';
+import { Link } from 'react-router';
 
 const flowVi: FlowLabels = {
   caption: 'Đường đi của một alert, đúng như code hiện tại. Hộp nét đứt là phần đã thiết kế nhưng chưa xây.',
@@ -13,7 +15,7 @@ const flowVi: FlowLabels = {
   statusNote: 'chỉ đọc, không cần đăng nhập',
   boardNote: 'S3 static website',
   notBuilt: 'chưa xây',
-  query: 'Query',
+  query: 'Query — đường đọc không chạm đường ghi',
 };
 
 const flowEn: FlowLabels = {
@@ -25,7 +27,7 @@ const flowEn: FlowLabels = {
   statusNote: 'read-only, no login',
   boardNote: 'S3 static website',
   notBuilt: 'not built',
-  query: 'Query',
+  query: 'Query — the read path never touches the write side',
 };
 
 const layout = `
@@ -53,6 +55,13 @@ export const architecture: Translated<DocPage> = {
         body: (
           <>
             <FlowDiagram l={flowVi} />
+            <p className="text-soft">
+              Muốn xem đường đi này chạy thật?{' '}
+              <Link to="/demo" className="underline decoration-banana decoration-2 underline-offset-2">
+                Bắn thử một alert trong demo
+              </Link>{' '}
+              — cùng các chặng, cùng nhịp escalation.
+            </p>
             <Callout tone="note" title="ingest không bao giờ chạm vào DynamoDB">
               <p>
                 Việc của nó chỉ là ghi vào SQS rồi trả <code>202</code>. Một database chậm hoặc
@@ -84,6 +93,15 @@ type AlertSink interface {
 	Publish(ctx context.Context, env domain.Envelope) error
 }
 `}</CodeBlock>
+            <PortsDiagram
+              l={{
+                caption: 'D10',
+                core: 'Logic nghiệp vụ thuần. Không import AWS SDK — chạy trên RKE2 y hệt trên Lambda.',
+                ports: 'Interface mà core cần: AlertSink, và các port khác khi processor được xây.',
+                adapters: 'sqsx, dynamox — một adapter cho mỗi port. Test thì thay bằng bản in-memory.',
+                rule: 'Phụ thuộc chỉ đi vào trong. Core đặt tên thứ nó cần và không bao giờ biết ai hiện thực.',
+              }}
+            />
             <p className="text-soft">
               Adapter thật nằm ở <code>internal/adapter/sqsx</code>. Muốn test thì thay bằng một
               bản in-memory, không cần LocalStack.
@@ -148,6 +166,13 @@ type AlertSink interface {
         body: (
           <>
             <FlowDiagram l={flowEn} />
+            <p className="text-soft">
+              Want to watch this path run?{' '}
+              <Link to="/demo" className="underline decoration-banana decoration-2 underline-offset-2">
+                Fire an alert in the demo
+              </Link>{' '}
+              — same stages, same escalation beats.
+            </p>
             <Callout tone="note" title="ingest never touches DynamoDB">
               <p>
                 Its entire job is to write to SQS and return <code>202</code>. A slow or broken
@@ -180,6 +205,15 @@ type AlertSink interface {
 	Publish(ctx context.Context, env domain.Envelope) error
 }
 `}</CodeBlock>
+            <PortsDiagram
+              l={{
+                caption: 'D10',
+                core: 'Pure business logic. Imports no AWS SDK — it runs on RKE2 exactly as it runs on Lambda.',
+                ports: 'The interfaces the core needs: AlertSink, and the rest once the processor is built.',
+                adapters: 'sqsx, dynamox — one per port. Swap an in-memory one in to test.',
+                rule: 'Dependencies point inward only. The core names what it needs and never learns who implements it.',
+              }}
+            />
             <p className="text-soft">
               The real adapter lives in <code>internal/adapter/sqsx</code>. To test, swap an
               in-memory one in — no LocalStack required.

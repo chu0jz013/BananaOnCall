@@ -1,0 +1,63 @@
+# Builds docs/ and publishes it to GitHub Pages.
+#
+# Nothing built is committed: docs/dist is gitignored and only ever exists in
+# the runner. docs/public/CNAME is copied into the artifact by Vite, so the
+# custom domain survives every deploy.
+#
+# NOTE: this only takes effect once Settings -> Pages -> Source is set to
+# "GitHub Actions". While it is still "Deploy from a branch", this workflow
+# succeeds but the live site does not change.
+name: Pages
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; let a running one finish rather than cancelling it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - run: npm ci
+
+      # Type-checks, builds, and copies index.html to 404.html so GitHub Pages
+      # can answer a deep link with something the router can resolve.
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

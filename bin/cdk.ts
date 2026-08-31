@@ -1,20 +1,16 @@
-#!/opt/homebrew/opt/node/bin/node
+#!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib/core';
 import { CdkStack } from '../lib/cdk-stack';
+import { envConfig } from '../lib/config';
 
 const app = new cdk.App();
+
+// `cdklocal deploy -c env=local` (the default) or `cdk deploy -c env=prod`.
+const config = envConfig(app.node.tryGetContext('env') ?? 'local');
+
 new CdkStack(app, 'CdkStack', {
-  /* If you don't specify 'env', this stack will be environment-agnostic.
-   * Account/Region-dependent features and context lookups will not work,
-   * but a single synthesized template can be deployed anywhere. */
-
-  /* Uncomment the next line to specialize this stack for the AWS Account
-   * and Region that are implied by the current CLI configuration. */
-  // env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
-
-  /* Uncomment the next line if you know exactly what Account and Region you
-   * want to deploy the stack to. */
-  // env: { account: '123456789012', region: 'us-east-1' },
-
-  /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
+  config,
+  // Environment-agnostic: one synthesized template deploys to LocalStack or to
+  // a real account. Nothing here does an account-scoped context lookup.
+  description: `BananaOnCall (${config.name})`,
 });

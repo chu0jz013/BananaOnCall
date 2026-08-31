@@ -1,0 +1,22 @@
+{
+  "version": "4",
+  "groupKey": "{}:{alertname=\"HighErrorRate\", namespace=\"payments\", service=\"checkout\"}",
+  "truncatedAlerts": 0,
+  "status": "firing",
+  "receiver": "bananaoncall",
+  "externalURL": "http://alertmanager:9093",
+  "groupLabels": { "alertname": "HighErrorRate", "namespace": "payments", "service": "checkout" },
+  "commonLabels": { "alertname": "HighErrorRate", "namespace": "payments", "service": "checkout", "severity": "critical" },
+  "commonAnnotations": { "runbook_url": "https://wiki.internal/runbooks/high-error-rate" },
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": { "alertname": "HighErrorRate", "namespace": "payments", "service": "checkout", "severity": "critical", "pod": "checkout-7d9f" },
+      "annotations": { "summary": "checkout 5xx rate above 2% for 5 minutes", "description": "Error budget burning at 14x" },
+      "startsAt": "2026-08-23T10:00:00.000Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus:9090/graph?g0.expr=checkout_5xx_rate",
+      "fingerprint": "a1b2c3d4e5f60718"
+    }
+  ]
+}

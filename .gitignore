@@ -7,3 +7,17 @@ node_modules
 .cdk.staging
 cdk.out
 .DS_Store
+# Go build output
+dist/
+tools/mock-telegram/bin/
+
+# Frontend
+web/node_modules
+web/dist
+
+# Docs site (built by .github/workflows/pages.yml, never committed)
+docs/node_modules
+docs/dist
+
+# Incremental tsc state
+*.tsbuildinfo

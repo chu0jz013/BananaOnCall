@@ -1,0 +1,15 @@
+[
+  {
+    "labels": {
+      "alertname": "HighErrorRate",
+      "namespace": "payments",
+      "service": "checkout",
+      "severity": "critical"
+    },
+    "annotations": {
+      "summary": "checkout 5xx rate above 2% for 5 minutes",
+      "runbook_url": "https://wiki.internal/runbooks/high-error-rate"
+    },
+    "generatorURL": "http://prometheus:9090/graph"
+  }
+]

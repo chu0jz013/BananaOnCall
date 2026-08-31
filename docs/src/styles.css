@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+/*
+ * Tokens are the same values web/src/styles.css and the archived design doc use,
+ * so the docs, the status board and the original proposal read as one product.
+ *
+ * Two layers on purpose:
+ *   @theme        the brand constants — these never change with the theme
+ *   @theme inline semantic roles, resolved from the vars below, which do change
+ *
+ * `inline` matters: it makes a utility emit `var(--bg)` rather than
+ * `var(--color-bg)`, so the value picks up whichever :root block is winning.
+ */
+@theme {
+  --color-ink: #14161a;
+  --color-paper: #fafaf7;
+  --color-banana: #f2c230;
+  --color-fire: #d8422e;
+  --color-ok: #1f7a5c;
+  --color-mute: #5a6472;
+  --color-rule: #e3e2db;
+
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-soft: var(--text-mute);
+  --color-line: var(--line);
+  --color-strong: var(--line-strong);
+  --color-wash: var(--wash);
+}
+
+:root {
+  --bg: #fafaf7;
+  --surface: #ffffff;
+  --text: #14161a;
+  --text-mute: #5a6472;
+  --line: #e3e2db;
+  --line-strong: #14161a;
+  --wash: rgba(242, 194, 48, 0.14);
+}
+
+/* System preference, unless the reader has explicitly chosen light. */
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    --bg: #14161a;
+    --surface: #1b1e24;
+    --text: #fafaf7;
+    --text-mute: #8a93a3;
+    --line: #2a2f37;
+    --line-strong: #3a414c;
+    --wash: rgba(242, 194, 48, 0.1);
+  }
+}
+
+/* An explicit choice wins in both directions. */
+:root[data-theme="dark"] {
+  --bg: #14161a;
+  --surface: #1b1e24;
+  --text: #fafaf7;
+  --text-mute: #8a93a3;
+  --line: #2a2f37;
+  --line-strong: #3a414c;
+  --wash: rgba(242, 194, 48, 0.1);
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Clears the sticky top bar when jumping to an anchor. */
+  scroll-padding-top: 5.5rem;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--color-banana);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+@keyframes boc-sweep { from { width: 0 } to { width: 100% } }
+@keyframes boc-pop { from { opacity: 0; transform: scale(.4) } to { opacity: 1; transform: scale(1) } }
+
+.sweep { animation: boc-sweep 2.2s cubic-bezier(.22, 1, .36, 1) forwards; }
+.beat { opacity: 0; animation: boc-pop .35s ease forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto }
+  .sweep, .beat {
+    animation: none !important;
+    opacity: 1 !important;
+    width: 100%;
+  }
+}

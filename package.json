@@ -9,7 +9,8 @@
     "cdklocal": "AWS_PROFILE=localstack cdklocal",
     "local:bootstrap": "AWS_PROFILE=localstack cdklocal bootstrap",
     "local:deploy": "AWS_PROFILE=localstack cdklocal deploy",
-    "local:destroy": "AWS_PROFILE=localstack cdklocal destroy"
+    "local:destroy": "AWS_PROFILE=localstack cdklocal destroy",
+    "pretest": "make build"
   },
   "devDependencies": {
     "@swc/core": "^1.15.0",

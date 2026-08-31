@@ -33,6 +33,9 @@
   },
   "exclude": [
     "node_modules",
-    "cdk.out"
+    "cdk.out",
+    "web",
+    "docs",
+    "dist"
   ]
 }

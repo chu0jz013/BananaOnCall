@@ -16,6 +16,12 @@ services:
       DEBUG: ${DEBUG:-0}
       # LocalStack starts Lambda/ECS containers on the host daemon.
       DOCKER_HOST: unix:///var/run/docker.sock
+      # Those Lambda containers are siblings, not children: without this they
+      # land on the default bridge and cannot resolve `mock-telegram` or `ical`
+      # by name. Must match this project's compose network.
+      LAMBDA_DOCKER_NETWORK: bananaoncall_default
+      # Keep warm containers around between E2E steps.
+      LAMBDA_KEEPALIVE_MS: 600000
     volumes:
       - localstack-data:/var/lib/localstack
       - /var/run/docker.sock:/var/run/docker.sock
@@ -26,5 +32,54 @@ services:
       retries: 20
       start_period: 20s
 
+  # Stand-in for api.telegram.org. Also serves a page where you can actually
+  # press Ack, which is how the escalation-stops test is driven.
+  mock-telegram:
+    build: ./tools/mock-telegram
+    container_name: mock-telegram
+    ports:
+      - "127.0.0.1:8081:8081"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/__health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Stands in for the secret Google Calendar iCal URL (D7). Same contract:
+  # an unauthenticated HTTPS GET returning an .ics body.
+  ical:
+    image: nginx:1.29-alpine
+    container_name: ical
+    ports:
+      - "127.0.0.1:8082:80"
+    volumes:
+      - ./fixtures:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/oncall.ics"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # The real thing, not a fake: acceptance criterion 1 says a genuine
+  # Alertmanager must be what fires the alert.
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./deploy/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --log.level=info
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/healthy"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
+  # LocalStack Community has no state persistence, so this only ever caches
+  # downloaded runtime assets. Never rely on it to survive resources.
   localstack-data:

@@ -1,0 +1,19 @@
+# Minimal Alertmanager wired straight at BananaOnCall. The REST API id is pinned
+# by the `_custom_id_` tag in the CDK stack, so this URL is stable across every
+# redeploy — without that the id is random and this file would need templating.
+global:
+  resolve_timeout: 1m
+
+route:
+  receiver: bananaoncall
+  group_by: ['alertname', 'namespace', 'service']
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 1h
+
+receivers:
+  - name: bananaoncall
+    webhook_configs:
+      - url: http://localstack:4566/_aws/execute-api/bananalocal/prod/v1/int/4f9c2d7ae1b845f0932c6de8a17b40c5e6f3819d2a4b7c05e8d9f1a3b6c47e20/alertmanager
+        send_resolved: true
+        max_alerts: 0

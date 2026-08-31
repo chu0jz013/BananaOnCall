@@ -1,0 +1,18 @@
+{
+  "version": "4",
+  "groupKey": "{}:{alertname=\"HighErrorRate\", namespace=\"payments\", service=\"checkout\"}",
+  "status": "resolved",
+  "receiver": "bananaoncall",
+  "externalURL": "http://alertmanager:9093",
+  "commonLabels": { "alertname": "HighErrorRate", "namespace": "payments", "service": "checkout", "severity": "critical" },
+  "alerts": [
+    {
+      "status": "resolved",
+      "labels": { "alertname": "HighErrorRate", "namespace": "payments", "service": "checkout", "severity": "critical", "pod": "checkout-7d9f" },
+      "annotations": { "summary": "checkout 5xx rate above 2% for 5 minutes" },
+      "startsAt": "2026-08-23T10:00:00.000Z",
+      "endsAt": "2026-08-23T10:25:00.000Z",
+      "generatorURL": "http://prometheus:9090/graph?g0.expr=checkout_5xx_rate"
+    }
+  ]
+}

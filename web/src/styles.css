@@ -1,0 +1,247 @@
+/*
+ * Tokens inherited from docs/index.html so the board and the design doc read as
+ * one product. Status steps are the exception: they were re-validated for chart
+ * use (see the note above --st-warning).
+ */
+:root {
+  --ink: #14161A;
+  --paper: #FAFAF7;
+  --banana: #F2C230;
+  --mute: #5A6472;
+  --rule: #E3E2DB;
+  --surface: #FFFFFF;
+
+  /*
+   * Status steps. Validated with the dataviz palette checker against both
+   * surfaces: worst adjacent pair is critical vs warning at deutan ΔE 24.0 and
+   * normal ΔE 29.5 — comfortably clear.
+   *
+   * --st-warning keeps the brand yellow even though it measures 1.6:1 against
+   * the light surface. Its lightness is exactly what separates it from red under
+   * deuteranopia; three darker ambers were tested and all collapsed that
+   * separation to ΔE 1.2-5.6. The low contrast is instead relieved structurally:
+   * every cell carries a ring, the legend is always present, each cell has a
+   * tooltip naming its state, and the same data is available as a table.
+   */
+  --st-good: #0E8259;
+  --st-warning: #F2C230;
+  --st-critical: #D8422E;
+  --st-empty: #E3E2DB;
+
+  --text: var(--ink);
+  --text-mute: var(--mute);
+  --cell-ring: rgba(20, 22, 26, .16);
+}
+
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    --paper: #14161A;
+    --surface: #1B1E24;
+    --rule: #2A2F37;
+    --mute: #8A93A3;
+    --st-empty: #2A2F37;
+    --text: #FAFAF7;
+    --text-mute: #8A93A3;
+    --cell-ring: rgba(250, 250, 247, .18);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #14161A;
+  --surface: #1B1E24;
+  --rule: #2A2F37;
+  --mute: #8A93A3;
+  --st-empty: #2A2F37;
+  --text: #FAFAF7;
+  --text-mute: #8A93A3;
+  --cell-ring: rgba(250, 250, 247, .18);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace; }
+
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .6875rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
+
+/* ---------------------------------------------------------------- masthead */
+
+.masthead { border-bottom: 1px solid var(--ink); padding: 2.5rem 0 2rem; }
+:root[data-theme="dark"] .masthead,
+:root:not([data-theme="light"]) .masthead { border-color: var(--rule); }
+
+.wordmark {
+  font-family: "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-weight: 700;
+  font-size: clamp(2rem, 6vw, 3rem);
+  letter-spacing: -.03em;
+  line-height: 1;
+  margin: 0 0 1.25rem;
+}
+.wordmark span { color: var(--banana); }
+
+/* The headline state. Never colour alone: a dot, a word, and a sentence. */
+.health { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.health-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--cell-ring) inset;
+  flex: none;
+}
+.health-word {
+  font-family: "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-weight: 700; font-size: 1.375rem; letter-spacing: -.01em;
+}
+.health-note { color: var(--text-mute); font-size: .9375rem; }
+
+.st-good    { background: var(--st-good); }
+.st-warning { background: var(--st-warning); }
+.st-critical{ background: var(--st-critical); }
+.st-empty   { background: var(--st-empty); }
+
+/* ---------------------------------------------------------------- sections */
+
+section { padding: 2.5rem 0; }
+h2 {
+  font-family: "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-weight: 700; font-size: 1.5rem; letter-spacing: -.02em;
+  margin: 0 0 .375rem;
+}
+.section-note { color: var(--text-mute); font-size: .875rem; margin: 0 0 1.5rem; }
+
+/* ------------------------------------------------------------- stat tiles */
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px;
+         background: var(--rule); border: 1px solid var(--rule); }
+.tile { background: var(--surface); padding: 1.125rem 1.25rem; }
+.tile-label { display: block; margin-bottom: .5rem; }
+.tile-value {
+  font-family: "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-weight: 700; font-size: 1.75rem; letter-spacing: -.02em; line-height: 1;
+}
+.tile-sub { color: var(--text-mute); font-size: .8125rem; margin-top: .375rem; }
+
+/* ------------------------------------------------------------- sli cards */
+
+.slis { display: grid; gap: 1rem; }
+.sli {
+  border: 1px solid var(--rule); background: var(--surface);
+  padding: 1.25rem 1.375rem;
+}
+.sli-head { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; margin-bottom: .25rem; }
+.sli-name { font-weight: 600; font-size: 1rem; }
+.sli-detail { color: var(--text-mute); font-size: .8125rem; margin: 0 0 1rem; }
+
+.sli-figure { display: flex; align-items: baseline; gap: .5rem; }
+.sli-actual {
+  font-family: "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-weight: 700; font-size: 2rem; letter-spacing: -.02em; line-height: 1;
+}
+.sli-target { color: var(--text-mute); font-size: .8125rem; }
+
+.pill {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .625rem; letter-spacing: .1em; text-transform: uppercase;
+  padding: .1875rem .4375rem; border: 1px solid currentColor;
+}
+.pill-ok    { color: var(--st-good); }
+.pill-bad   { color: var(--st-critical); }
+
+/* Error-budget meter: 4px rounded ends, anchored to the track's start. */
+.meter { margin-top: 1rem; }
+.meter-track {
+  height: 8px; background: var(--st-empty); border-radius: 4px; overflow: hidden;
+}
+.meter-fill { height: 100%; border-radius: 4px; }
+.meter-legend {
+  display: flex; justify-content: space-between; gap: 1rem;
+  margin-top: .4375rem; font-size: .75rem; color: var(--text-mute);
+}
+
+/* ------------------------------------------------------- 28-day strip */
+
+.strip { margin-top: 1.125rem; }
+.strip-cells { display: flex; gap: 2px; }   /* 2px surface gap between fills */
+.cell {
+  flex: 1 1 0; height: 34px; border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--cell-ring) inset;   /* edge definition regardless of fill */
+  position: relative; cursor: default;
+}
+.cell:focus-visible { outline: 2px solid var(--banana); outline-offset: 2px; }
+.strip-axis {
+  display: flex; justify-content: space-between;
+  margin-top: .4375rem; font-size: .6875rem; color: var(--text-mute);
+}
+
+/* Tooltip: bigger hit target than the mark, appears above it. */
+.cell .tip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--paper);
+  border: 1px solid var(--rule);
+  padding: .5rem .625rem; border-radius: 3px; white-space: nowrap;
+  font-size: .75rem; line-height: 1.5; z-index: 5;
+  opacity: 0; pointer-events: none; transition: opacity .12s ease;
+}
+:root[data-theme="dark"] .cell .tip,
+:root:not([data-theme="light"]) .cell .tip { background: #000; color: #FAFAF7; }
+.cell:hover .tip, .cell:focus-visible .tip { opacity: 1; }
+
+/* ---------------------------------------------------------------- legend */
+
+.legend { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.legend-item { display: flex; align-items: center; gap: .375rem; font-size: .75rem; color: var(--text-mute); }
+.legend-swatch {
+  width: 11px; height: 11px; border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--cell-ring) inset;
+}
+
+/* ---------------------------------------------------------------- tables */
+
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .875rem; }
+th, td { text-align: left; padding: .625rem .75rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .6875rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-mute); font-weight: 500; border-bottom: 1px solid var(--text);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: none; }
+
+.toggle {
+  background: none; border: 1px solid var(--rule); color: var(--text-mute);
+  font: inherit; font-size: .75rem; padding: .25rem .625rem; cursor: pointer;
+}
+.toggle:hover { color: var(--text); border-color: var(--text-mute); }
+
+/* ---------------------------------------------------------------- misc */
+
+.row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.empty { color: var(--text-mute); font-size: .875rem; padding: 1.25rem 0; }
+.error {
+  border-left: 2px solid var(--st-critical); padding: .75rem 0 .75rem 1rem;
+  color: var(--text); font-size: .9375rem;
+}
+footer {
+  border-top: 1px solid var(--rule); margin-top: 2rem; padding: 1.75rem 0 2.5rem;
+  color: var(--text-mute); font-size: .75rem;
+}
+footer a { color: var(--text-mute); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

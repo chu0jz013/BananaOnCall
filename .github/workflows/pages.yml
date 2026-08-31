@@ -4,17 +4,17 @@
 # the runner. docs/public/CNAME is copied into the artifact by Vite, so the
 # custom domain survives every deploy.
 #
-# NOTE: this only takes effect once Settings -> Pages -> Source is set to
-# "GitHub Actions". While it is still "Deploy from a branch", this workflow
-# succeeds but the live site does not change.
+# Requires Settings -> Pages -> Source = "GitHub Actions". While it is set to
+# "Deploy from a branch", GitHub also runs its own legacy `pages-build-deployment`
+# job, which publishes the RAW docs/ folder — the unbuilt Vite entry, whose
+# `<script src="/src/main.tsx">` a browser cannot execute, so the site renders
+# blank. That builder finishing after this workflow is what overwrote a good
+# deploy once already.
 name: Pages
 
 on:
   push:
     branches: [master]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -47,6 +47,21 @@ jobs:
       # Type-checks, builds, and copies index.html to 404.html so GitHub Pages
       # can answer a deep link with something the router can resolve.
       - run: npm run build
+
+      # Fail loudly here rather than shipping a blank page: these three are
+      # exactly what was missing the day the legacy builder won the race.
+      - name: Verify the build output
+        run: |
+          set -eu
+          for f in index.html 404.html CNAME design-doc-v0.1.html; do
+            test -s "dist/$f" || { echo "::error::dist/$f is missing or empty"; exit 1; }
+          done
+          ls dist/assets/*.js >/dev/null 2>&1 || { echo "::error::no JS bundle in dist/assets"; exit 1; }
+          if grep -q 'src/main.tsx' dist/index.html; then
+            echo "::error::dist/index.html is the unbuilt Vite entry, not the built one"
+            exit 1
+          fi
+          echo "dist/ looks right:"; ls -R dist
 
       - uses: actions/upload-pages-artifact@v3
         with:

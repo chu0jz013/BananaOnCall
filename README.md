@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/public/picture/logo-lockup-480.png" alt="BananaOnCall" width="220">
+</p>
+
 # BananaOnCall
 
 On-call engine (*hệ thống trực sự cố*) on AWS Serverless. It takes alerts from

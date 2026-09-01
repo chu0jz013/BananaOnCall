@@ -15,8 +15,14 @@ export function Layout({ children, hero }: { children: ReactNode; hero?: ReactNo
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-line bg-bg/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-6 py-3 lg:px-10">
-          <Link to="/" className="font-display text-lg font-bold tracking-[-0.01em]">
-            Banana<span className="text-banana">OnCall</span>
+          <Link
+            to="/"
+            className="font-display flex items-center gap-2.5 text-lg font-bold tracking-[-0.01em]"
+          >
+            <img src="/picture/logo-mark-64.png" alt="" width={32} height={32} className="h-8 w-8" />
+            <span>
+              Banana<span className="text-banana">OnCall</span>
+            </span>
           </Link>
           <span className="eyebrow hidden text-soft md:block">{t.tagline}</span>
 
@@ -56,7 +62,17 @@ export function Layout({ children, hero }: { children: ReactNode; hero?: ReactNo
 
       <footer className="mt-16 border-t border-line">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-baseline gap-x-8 gap-y-2 px-6 py-8 lg:px-10">
-          <span className="font-display text-base font-bold">BananaOnCall</span>
+          {/* self-center: the row is items-baseline and an image has no useful baseline. */}
+          <span className="font-display flex items-center gap-2 self-center text-base font-bold">
+            <img
+              src="/picture/logo-mark-64.png"
+              alt=""
+              width={22}
+              height={22}
+              className="h-[22px] w-[22px]"
+            />
+            BananaOnCall
+          </span>
           <span className="font-mono text-xs text-soft">{t.editedFrom}</span>
           <span className="ml-auto font-mono text-xs text-soft">Apache-2.0</span>
         </div>

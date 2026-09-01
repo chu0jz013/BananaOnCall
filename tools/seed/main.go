@@ -26,6 +26,7 @@ import (
 func main() {
 	table := flag.String("table", os.Getenv("TABLE_NAME"), "DynamoDB table name")
 	clean := flag.Bool("clean", false, "seed with nothing currently firing")
+	wait := flag.Int("wait", 20, "seconds each escalation step waits for an ack")
 	seed := flag.Uint64("seed", 20260823, "PRNG seed, so runs are reproducible")
 	flag.Parse()
 
@@ -45,8 +46,11 @@ func main() {
 
 	rollups := seedRollups(ctx, db, *table, now, rng)
 	incidents := seedIncidents(ctx, db, *table, now, rng, *clean)
+	steps := seedPolicy(ctx, db, *table, *wait)
+	people := seedContacts(ctx, db, *table)
 
-	fmt.Printf("seeded %d rollup days and %d incidents into %s\n", rollups, incidents, *table)
+	fmt.Printf("seeded %d rollup days, %d incidents, %d escalation steps and %d contacts into %s\n",
+		rollups, incidents, steps, people, *table)
 }
 
 // seedRollups writes one item per SLI per day across the published window.
@@ -202,4 +206,63 @@ func put(ctx context.Context, db *dynamodb.Client, table string, item map[string
 func s(v string) types.AttributeValue { return &types.AttributeValueMemberS{Value: v} }
 func n(v int64) types.AttributeValue {
 	return &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", v)}
+}
+
+// seedPolicy writes the one escalation chain the MVP routes everything to.
+//
+// Locally the waits are seconds rather than the doc's five minutes, so the
+// whole ladder is watchable inside one `make e2e` run. The shape is the real
+// one — primary, then a named second responder, then the war room, which then
+// repeats (FR-3.2, FR-3.6).
+func seedPolicy(ctx context.Context, db *dynamodb.Client, table string, wait int) int {
+	steps := []struct {
+		order int
+		kind  domain.TargetKind
+		ref   string
+		wait  int
+	}{
+		{1, domain.TargetOnCall, "", wait},
+		{2, domain.TargetUser, "linh", wait},
+		{3, domain.TargetGroupChat, warRoomChatID, wait + 10},
+	}
+
+	for _, st := range steps {
+		put(ctx, db, table, map[string]types.AttributeValue{
+			// Zero-padded so a Query returns the steps in order.
+			"pk":          s("EP#" + domain.DefaultPolicyID),
+			"sk":          s(fmt.Sprintf("STEP#%02d", st.order)),
+			"kind":        s(string(st.kind)),
+			"ref":         s(st.ref),
+			"waitSeconds": n(int64(st.wait)),
+		})
+	}
+	return len(steps)
+}
+
+// warRoomChatID stands in for a Telegram group chat; negative ids are how
+// Telegram distinguishes groups from people.
+const warRoomChatID = "-1002000001"
+
+// seedContacts links the calendar's names to chat ids. FR-5.2 will replace this
+// with a /link command; until then the mapping is seeded.
+func seedContacts(ctx context.Context, db *dynamodb.Client, table string) int {
+	people := []struct{ user, chat string }{
+		{"mai", "100001"},
+		{"linh", "100002"},
+		// The fallback FR-4.6 pages when the rota is empty. It must exist, or
+		// the failure mode it guards against just moves one step later.
+		{domain.FallbackUserID, "100000"},
+	}
+
+	for _, p := range people {
+		put(ctx, db, table, map[string]types.AttributeValue{
+			"pk":       s("USER#" + p.user),
+			"sk":       s("CONTACT#" + domain.ChannelTelegram),
+			"gsi1pk":   s("CHAT#" + p.chat),
+			"gsi1sk":   s("USER#" + p.user),
+			"chatId":   s(p.chat),
+			"username": s(p.user),
+		})
+	}
+	return len(people)
 }

@@ -8,7 +8,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # Lambda handlers, one directory each under cmd/ and dist/.
-FUNCS := ingest status
+FUNCS := ingest status processor notify callback schedule
 
 # LocalStack Community runs Lambdas as arm64 containers on this Apple Silicon
 # host; Graviton is also what we want in prod, so one target serves both.
@@ -22,6 +22,13 @@ KEY     := 4f9c2d7ae1b845f0932c6de8a17b40c5e6f3819d2a4b7c05e8d9f1a3b6c47e20
 EDGE    := http://localhost:4566
 API     := $(EDGE)/_aws/execute-api/$(API_ID)/$(STAGE)
 WEBHOOK := $(API)/v1/int/$(KEY)/alertmanager
+
+# Telegram side. SECRET is pinned in lib/config.ts; TG_WEBHOOK is the URL as the
+# mock-telegram container reaches it, which is the compose name, not localhost.
+SECRET     := b0c8f3a15e7d429cab6f0e2d9137c845
+BOT_TOKEN  := 1234567:local-bot-token
+TG         := http://localhost:8081
+TG_WEBHOOK := http://localstack:4566/_aws/execute-api/$(API_ID)/$(STAGE)/v1/tg/$(SECRET)/webhook
 
 # Static site. The bucket name is fixed in lib/config.ts so this needs no lookup.
 SITE_BUCKET := bananaoncall-status-local
@@ -114,13 +121,29 @@ ensure-stage:
 	fi
 
 .PHONY: seed
-seed: ## Fill the table with SLA rollups and incident history
+seed: ## Fill the table with policy, contacts, rollups and history (SEED_ARGS='-wait 300')
 	@$(LOCAL) TABLE_NAME=$$($(LOCAL) aws dynamodb list-tables \
 	  --query 'TableNames[?starts_with(@, `$(TABLE)`)] | [0]' --output text) \
-	  go run ./tools/seed
+	  go run ./tools/seed $(SEED_ARGS)
+
+# Point the mock at our callback route, the same call the real bot makes once.
+# Without it a button press has nowhere to go and __press answers 409.
+.PHONY: link
+link: ## Register the Telegram webhook with mock-telegram
+	@curl -sS -X POST '$(TG)/bot$(BOT_TOKEN)/setWebhook' \
+	  -H 'content-type: application/json' \
+	  -d '{"url":"$(TG_WEBHOOK)","secret_token":"$(SECRET)"}' >/dev/null
+	@echo "  telegram webhook -> $(TG_WEBHOOK)"
+
+.PHONY: sync-schedule
+sync-schedule: ## Materialize the on-call rota now, without waiting for the timer
+	@out=$$(mktemp); $(LOCAL) aws lambda invoke --function-name $$($(LOCAL) aws lambda list-functions \
+	  --query 'Functions[?contains(FunctionName, `ScheduleSync`)].FunctionName | [0]' \
+	  --output text) --payload '{}' --cli-binary-format raw-in-base64-out "$$out" >/dev/null; \
+	 cat "$$out"; echo; rm -f "$$out"
 
 .PHONY: all
-all: up bootstrap deploy seed web-deploy ## Everything, from nothing to a browsable board
+all: up bootstrap deploy seed link sync-schedule web-deploy ## Everything, from nothing to a browsable board
 
 .PHONY: destroy
 destroy: ## Remove the stack from LocalStack
@@ -158,9 +181,9 @@ queue: ## Peek at what is sitting on the alert queue
 	  --query 'Messages[].Body' --output text
 
 .PHONY: logs
-logs: ## Tail the ingest Lambda log group
+logs: ## Tail a Lambda log group: make logs F=Processor (default Ingest)
 	$(LOCAL) aws logs tail /aws/lambda/$$($(LOCAL) aws lambda list-functions \
-	  --query 'Functions[?contains(FunctionName, `Ingest`)].FunctionName | [0]' \
+	  --query 'Functions[?contains(FunctionName, `$(or $(F),Ingest)`)].FunctionName | [0]' \
 	  --output text) --follow
 
 .PHONY: fire
@@ -177,6 +200,17 @@ status: ## Fetch the status board JSON
 .PHONY: open
 open: ## Open the status board in a browser
 	@open '$(SITE_URL)' 2>/dev/null || echo "$(SITE_URL)"
+
+.PHONY: sfn
+sfn: ## Show escalation executions and their state
+	@arn=$$($(LOCAL) aws stepfunctions list-state-machines \
+	  --query 'stateMachines[?contains(name, `Escalation`)].stateMachineArn | [0]' --output text); \
+	 $(LOCAL) aws stepfunctions list-executions --state-machine-arn "$$arn" \
+	  --query 'executions[].{incident:name,status:status,started:startDate}' --output table
+
+.PHONY: ack
+ack: ## Press Ack on the newest mock-telegram message
+	@python3 test/e2e/press.py ack
 
 .PHONY: messages
 messages: ## Show what mock-telegram has received

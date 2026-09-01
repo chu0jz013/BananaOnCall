@@ -23,10 +23,29 @@ make all       # from nothing to a browsable status board, ~35s
 make open      # open it
 ```
 
-`make all` is `up`, `bootstrap`, `deploy`, `seed`, `web-deploy`. Run them
-separately when you only need one.
+`make all` is `up`, `bootstrap`, `deploy`, `seed`, `link`, `sync-schedule`,
+`web-deploy`. Run them separately when you only need one.
 
 `make help` lists everything.
+
+### Watching the on-call loop
+
+The whole alert → page → escalate → ack path runs locally, against a real
+Alertmanager and a fake Telegram:
+
+```bash
+make fire                     # a real Alertmanager fires an alert at us
+open http://localhost:8081    # the page mai gets, with a live Ack button
+make sfn                      # the escalation, as Step Functions executions
+```
+
+Leave it alone for twenty seconds and the second person is paged; press **Ack**
+and the original message rewrites itself to say who took it, the escalation
+execution goes `ABORTED`, and the incident turns up on the status board.
+
+The escalation waits are seconds rather than the design doc's five minutes:
+`tools/seed` writes the policy with `-wait 20` so the whole ladder is watchable.
+`make seed SEED_ARGS='-wait 300'` gives the real timings.
 
 ### What is running
 
@@ -34,7 +53,7 @@ separately when you only need one.
 |---|---|---|
 | `localstack` | 4566 | AWS |
 | `mock-telegram` | 8081 | api.telegram.org — open <http://localhost:8081> to press Ack |
-| `ical` | 8082 | the secret Google Calendar iCal URL |
+| `ical` | 8082 | the secret Google Calendar iCal URL — `mai` and `linh` rotate fortnightly |
 | `alertmanager` | 9093 | the real Alertmanager on RKE2 |
 
 The status board itself is served by LocalStack's S3, not by a container:

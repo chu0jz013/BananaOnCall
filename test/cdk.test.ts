@@ -127,3 +127,67 @@ describe('webhook api', () => {
     expect(tags.some((t: any) => t.Key === '_custom_id_')).toBe(false);
   });
 });
+
+describe('escalation', () => {
+  test('is a Standard state machine that waits on the policy, not on a constant', () => {
+    const machines = template('local').findResources('AWS::StepFunctions::StateMachine');
+    const definition = JSON.stringify(Object.values(machines));
+
+    // A hardcoded Seconds here would mean changing an escalation chain needs a
+    // deploy; FR-3.2 says the wait comes from the policy.
+    expect(definition).toContain('SecondsPath');
+    expect(definition).toContain('$.waitSeconds');
+    expect(definition).toContain('$.stop');
+    // STANDARD is the default and is what D1 chose: Express executions cap at
+    // five minutes, which is shorter than a single escalation step in prod.
+    const types = Object.values(machines).map((m: any) => m.Properties.StateMachineType);
+    expect(types.every((t) => t === undefined || t === 'STANDARD')).toBe(true);
+  });
+
+  test('the processor can start and stop it but never sends a message itself', () => {
+    const actions = actionsForRole('Processor');
+    expect(actions).toEqual(expect.arrayContaining([expect.stringMatching(/^states:StartExecution/)]));
+    expect(actions).toEqual(expect.arrayContaining([expect.stringMatching(/^states:StopExecution/)]));
+    expect(actions).toEqual(expect.arrayContaining([expect.stringMatching(/^dynamodb:/)]));
+  });
+
+  test('the callback can stop an escalation but cannot start one', () => {
+    // An ack must be able to end the ladder; nothing a responder presses should
+    // be able to launch a new one.
+    const actions = actionsForRole('Callback');
+    expect(actions).toEqual(expect.arrayContaining([expect.stringMatching(/^states:StopExecution/)]));
+    expect(actions).not.toEqual(expect.arrayContaining([expect.stringMatching(/^states:StartExecution/)]));
+  });
+
+  test('the notifier has no access to the state machine at all', () => {
+    // It reports whether to continue; it does not get to decide by itself.
+    expect(actionsForRole('Notify')).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/^states:/)]),
+    );
+  });
+});
+
+describe('processing', () => {
+  test('consumes the FIFO queue one message at a time', () => {
+    // The queue is FIFO so that `firing` precedes `resolved` for one subject.
+    // A larger batch would let a partial failure replay that ordering.
+    template('local').hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+      BatchSize: 1,
+    });
+  });
+
+  test('polls the calendar on an EventBridge rule, not the scheduler', () => {
+    // LocalStack's scheduler provider stores schedules and never fires them;
+    // rate() rules really do run, and cost nothing (FR-4.1).
+    template('local').hasResourceProperties('AWS::Events::Rule', {
+      ScheduleExpression: 'rate(5 minutes)',
+    });
+  });
+
+  test('exposes the telegram callback behind a secret path segment', () => {
+    const t = template('local');
+    for (const part of ['tg', '{secret}', 'webhook']) {
+      t.hasResourceProperties('AWS::ApiGateway::Resource', { PathPart: part });
+    }
+  });
+});

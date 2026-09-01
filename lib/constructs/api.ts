@@ -15,6 +15,7 @@ export interface WebhookApiProps {
   readonly env: EnvConfig;
   readonly ingest: IFunction;
   readonly status: IFunction;
+  readonly callback: IFunction;
 }
 
 /**
@@ -65,6 +66,16 @@ export class WebhookApi extends Construct {
     integration
       .addResource('alertmanager')
       .addMethod('POST', new LambdaIntegration(props.ingest, { proxy: true }));
+
+    // POST /v1/tg/{secret}/webhook — where Telegram delivers button presses.
+    // The secret sits in the path because that is the only place Telegram will
+    // carry one on the URL; the handler checks the header it also sends.
+    this.api.root
+      .getResource('v1')!
+      .addResource('tg')
+      .addResource('{secret}')
+      .addResource('webhook')
+      .addMethod('POST', new LambdaIntegration(props.callback, { proxy: true }));
 
     // GET /v1/status — public, read-only, and on a different origin from the
     // board that calls it, so it needs a real preflight rather than a wildcard.

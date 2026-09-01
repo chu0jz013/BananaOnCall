@@ -14,6 +14,18 @@ export interface EnvConfig {
   readonly integrationKeys: string[];
   /** Where the notifier sends Telegram calls. */
   readonly telegramApiBaseUrl: string;
+  /**
+   * Bot token. Locally it is a fixed string the mock ignores; in prod this is
+   * a Secrets Manager lookup, not a synthesized value.
+   */
+  readonly telegramBotToken: string;
+  /**
+   * Shared secret for the callback webhook. It appears in the URL path *and*
+   * in the header Telegram sends, so a leaked URL alone is not enough.
+   */
+  readonly telegramWebhookSecret: string;
+  /** Schedule the notifier resolves "who is on call" against (FR-4.4). */
+  readonly scheduleId: string;
   /** Where schedule-sync fetches the roster (D7). */
   readonly icalUrl: string;
   /** Throttle applied at the API stage (D2). */
@@ -32,6 +44,10 @@ export const LOCAL_REST_API_ID = 'bananalocal';
 
 export const LOCAL_SITE_BUCKET = 'bananaoncall-status-local';
 
+/** Fixed locally so the Makefile, the E2E suite and mock-telegram agree. */
+export const LOCAL_TELEGRAM_SECRET = 'b0c8f3a15e7d429cab6f0e2d9137c845';
+export const LOCAL_BOT_TOKEN = '1234567:local-bot-token';
+
 /**
  * LocalStack's S3 website endpoint. `*.localhost.localstack.cloud` resolves to
  * 127.0.0.1 in any browser, so this works without touching /etc/hosts.
@@ -46,6 +62,11 @@ export function envConfig(name: string): EnvConfig {
         name: 'prod',
         integrationKeys: [],
         telegramApiBaseUrl: 'https://api.telegram.org',
+        // Placeholders: prod reads both from Secrets Manager at start-up rather
+        // than baking them into a template that lives in git.
+        telegramBotToken: '',
+        telegramWebhookSecret: '',
+        scheduleId: 'primary',
         icalUrl: '',
         throttle: { rateLimit: 50, burstLimit: 100 },
         // Set once a domain is chosen (design doc Q4).
@@ -59,6 +80,9 @@ export function envConfig(name: string): EnvConfig {
         // Container-to-container names: Lambdas resolve these because
         // LAMBDA_DOCKER_NETWORK puts them on this compose network.
         telegramApiBaseUrl: 'http://mock-telegram:8081',
+        telegramBotToken: LOCAL_BOT_TOKEN,
+        telegramWebhookSecret: LOCAL_TELEGRAM_SECRET,
+        scheduleId: 'primary',
         icalUrl: 'http://ical/oncall.ics',
         throttle: { rateLimit: 200, burstLimit: 400 },
         siteBucketName: LOCAL_SITE_BUCKET,

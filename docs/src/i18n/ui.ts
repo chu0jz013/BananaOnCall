@@ -13,6 +13,8 @@ export interface Ui {
   readonly toDark: string;
   readonly archivedDoc: string;
   readonly repo: string;
+  readonly feedback: string;
+  readonly feedbackNote: string;
   readonly editedFrom: string;
   readonly notFound: string;
   readonly notFoundBody: string;
@@ -32,6 +34,8 @@ export const ui: Translated<Ui> = {
     toDark: 'Chuyển sang nền tối',
     archivedDoc: 'Design doc v0.1 (lưu trữ)',
     repo: 'Mã nguồn',
+    feedback: 'Góp ý',
+    feedbackNote: 'Thấy chỗ nào sai hoặc thiếu?',
     editedFrom: 'Tài liệu này sinh ra từ chính mã nguồn trong repo.',
     notFound: 'Không có trang này',
     notFoundBody: 'Đường dẫn bạn mở không tồn tại trong tài liệu.',
@@ -49,6 +53,8 @@ export const ui: Translated<Ui> = {
     toDark: 'Switch to dark',
     archivedDoc: 'Design doc v0.1 (archived)',
     repo: 'Source',
+    feedback: 'Feedback',
+    feedbackNote: 'Something wrong or missing?',
     editedFrom: 'These docs are written from the code in this repository.',
     notFound: 'Page not found',
     notFoundBody: 'That path does not exist in these docs.',

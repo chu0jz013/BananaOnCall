@@ -2,6 +2,7 @@ import { NavLink } from 'react-router';
 import { routes } from '../content';
 import { useLang } from '../i18n/lang';
 import { ui } from '../i18n/ui';
+import { DESIGN_DOC_URL, FEEDBACK_URL, REPO_URL } from '../links';
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { lang } = useLang();
@@ -33,18 +34,30 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="mt-6 space-y-2 border-t border-line pt-6 text-sm">
         <a
-          href="/design-doc-v0.1.html"
+          href={DESIGN_DOC_URL}
           className="block text-soft transition-colors hover:text-text"
         >
           {t.archivedDoc} ↗
         </a>
         <a
-          href="https://github.com/chu0jz013/BananaOnCall"
+          href={REPO_URL}
           target="_blank"
           rel="noreferrer"
           className="block text-soft transition-colors hover:text-text"
         >
           {t.repo} ↗
+        </a>
+      </div>
+
+      <div className="mt-6 border-t border-line pt-6">
+        <p className="mb-2 text-[.8125rem] leading-relaxed text-soft">{t.feedbackNote}</p>
+        <a
+          href={FEEDBACK_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-block border border-strong px-3 py-2 font-mono text-[.6875rem] tracking-[.08em] uppercase transition-colors hover:bg-wash"
+        >
+          {t.feedback} ↗
         </a>
       </div>
     </nav>

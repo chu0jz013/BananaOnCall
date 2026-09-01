@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { REPO_URL } from '../links';
 
 export interface HeroLabels {
   readonly headline: string;
@@ -31,7 +32,7 @@ export function Hero({ l }: { l: HeroLabels }) {
                 {l.quickstart} →
               </Link>
               <a
-                href="https://github.com/chu0jz013/BananaOnCall"
+                href={REPO_URL}
                 target="_blank"
                 rel="noreferrer"
                 className="border border-strong px-5 py-3 font-mono text-xs tracking-[.08em] uppercase transition-colors hover:bg-wash"

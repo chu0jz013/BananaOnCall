@@ -5,6 +5,7 @@ import { LangToggle } from './LangToggle';
 import { ThemeToggle } from './ThemeToggle';
 import { useLang } from '../i18n/lang';
 import { ui } from '../i18n/ui';
+import { FEEDBACK_URL } from '../links';
 
 export function Layout({ children, hero }: { children: ReactNode; hero?: ReactNode }) {
   const { lang } = useLang();
@@ -74,6 +75,14 @@ export function Layout({ children, hero }: { children: ReactNode; hero?: ReactNo
             BananaOnCall
           </span>
           <span className="font-mono text-xs text-soft">{t.editedFrom}</span>
+          <a
+            href={FEEDBACK_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="font-mono text-xs text-soft underline decoration-banana decoration-2 underline-offset-4 transition-colors hover:text-text"
+          >
+            {t.feedback} ↗
+          </a>
           <span className="ml-auto font-mono text-xs text-soft">Apache-2.0</span>
         </div>
       </footer>
